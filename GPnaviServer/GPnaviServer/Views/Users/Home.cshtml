@@ -1,0 +1,120 @@
+﻿@using GPnaviServer.Models;
+
+@{
+    ViewData["Title"] = "Home";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@model UserStatus;
+<script type="text/javascript">
+    $(function () {
+        $('#topPageLink').hide();
+        $('#naviUserName').text('@ViewBag.LoginName');
+
+        Cookies.set('SessionKey', '@Model.SessionKey');
+        Cookies.set('LoginId', '@Model.LoginId');
+        Cookies.set('LoginName', '@ViewBag.LoginName');
+
+
+        let stateChain = 0;
+        $(".home-btn").hover(
+            function () {
+                //console.log(1);
+                $(this).before($('#hover'));
+                $('#hover').prop('hidden', false);
+            },
+            function () {
+                //console.log(2);
+            }
+        );
+
+        $("#hover").hover(
+            function () {
+                //console.log(100);
+            },
+            function () {
+                $('#hover').prop('hidden', true);
+                $('#operations').prepend($('#hover'));
+                //console.log(102);
+                stateChain = stateChain==204? 204102:0;
+            }
+        );
+
+
+        $("#hover").mouseup(function () {
+            //console.log(203);
+        }).mousedown(
+            function () {
+                //$(this).toggleClass('alpha-btn');
+                //console.log(204);
+                $(this).before($('#press'));
+                $('#press').prop('hidden', false);
+                $('#hover').prop('hidden', true);
+                $('#operations').prepend($('#hover'));
+
+                stateChain = 204;
+            }
+        );
+
+        $("#press").mouseup(function () {
+            //console.log(303);
+            if (stateChain == 204102) {
+                //console.log("submit");
+                //console.log($(this).parent().attr('href'));
+                $(this).parent()[0].click();
+            }
+            $('#hover').prop('hidden', true);
+            $('#hover').prop('hidden', false);
+            $('#operations').prepend($('#press'));
+            $('#press').prop('hidden', true);
+
+        }).mousedown(
+            function () {
+                //$(this).toggleClass('alpha-btn');
+                //console.log(304);
+            }
+        );
+
+        $("#press").mouseleave(function () {
+            //console.log(888);
+            $('#operations').prepend($('#press'));
+            $('#press').prop('hidden', true);
+        });      
+    });
+</script>
+
+<div class="container">
+    <div class="row">
+        <div class="col-sm-6 col-md-4 col-md-offset-4 mx-auto" id="operations">
+            <br /><br /><br />
+            <img id="hover" class="alpha-btn" src="~/images/hover_btn.png" alt="btn_hover" hidden />
+            <img id="press" class="alpha-btn" src="~/images/press_btn.png" alt="btn_press" hidden />
+
+
+            <a href="/WS/TimeAggregate?loginId=@Model.LoginId&sessionKey=@Model.SessionKey" >
+                <img class="home-btn" src="~/images/time_btn.png" alt="時間帯別集計time_btn" />
+            </a>
+
+                
+            <a href="/WS/DayAggregate?loginId=@Model.LoginId&sessionKey=@Model.SessionKey" >
+                <img class="home-btn"  src="~/images/day_btn.png" alt="日別集計day_btn" />
+            </a>
+
+
+            <a href="/WS/upload?loginId=@Model.LoginId&sessionKey=@Model.SessionKey">
+                <img class="home-btn" src="~/images/up_btn.png" alt="日別集計up_btn" />
+            </a>
+
+
+        </div>
+    </div>
+</div>
+
+<style>
+    .alpha-btn {
+        position: absolute;       
+    }
+
+    .home-btn {        
+    }
+</style>

@@ -1,0 +1,91 @@
+﻿@using GPnaviServer.Models;
+
+@{
+    ViewData["Title"] = "Upload";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<br /><br />
+
+
+<div class="container">
+    <div class="col-sm-8 col-md-8 col-md-offset-8 mx-auto">
+
+        <h2 style="color: #2952a3;"><img src="~/images/up_title.png" class="img-responsive">&nbsp;アップロード</h2><br />
+
+        <div class="">            
+            <label id="dis" style="color: red;">@ViewBag.Message</label><br><br />
+        </div>
+
+        <h4>ワークスケジュール</h4><br />
+        <form method="post" enctype="multipart/form-data" asp-controller="WS" asp-action="uploadws" id="wsForm">
+            <div class="input-group">
+                <input type="text" class="form-control" placeholder="ファイルをお選びください" required readonly="" id="wsFile">
+                <label class="input-group-btn">
+                    <span class="btn btn-gray" style="margin-left: 20px;">
+                        ファイル選択<input type="file" style="display:none" accept="text/csv,.csv,.CSV" name="file" />
+                    </span>
+                </label>
+            </div>
+            <input type="hidden" name="LoginId" />
+            <input type="hidden" name="SessionKey"/>
+            <div>
+                <button class="btn float-right btn-gpnavi" id="uploadws" type="button">
+                    アップロード
+                </button>
+            </div>
+        </form>
+        <br /><br /><hr />
+
+        <h4>店員情報</h4><br />
+        <form method="post" enctype="multipart/form-data" asp-controller="Users" asp-action="uploaduserdata" id="staffForm">
+            <div class="input-group">
+                <input type="text" class="form-control" placeholder="ファイルをお選びください" required readonly="" id="staffFile">
+                <label class="input-group-btn">
+                    <span class="btn btn-gray" style="margin-left: 20px;">
+                        ファイル選択<input type="file" style="display:none" accept="text/csv,.csv,.CSV" name="file" />
+                    </span>
+                </label>
+            </div>
+            <input type="hidden" name="LoginId" />
+            <input type="hidden" name="SessionKey" />
+            <div>
+                <button class="btn float-right btn-gpnavi" id="uploadstaff" type="button">
+                    アップロード
+                </button>
+            </div>
+        </form>
+        <br /><br /><hr />
+
+
+    </div>
+</div>
+
+<script>
+    $('input[name=LoginId]').val(Cookies.get('LoginId'));
+    $('input[name=SessionKey]').val(Cookies.get('SessionKey')); 
+
+    $(document).on('change', ':file', function () {
+        var input = $(this),
+            numFiles = input.get(0).files ? input.get(0).files.length : 1,
+            label = input.val().replace(/\\/g, '/').replace(/.*\//, '');
+        input.parent().parent().prev(':text').val(label);
+    });
+
+    $('#uploadws').click(function () {
+        if ($('#wsFile').val().length > 0) {
+            $('#wsForm').submit();
+        } else {
+            $('#dis').text("ワークスケジュールCSVファイルを選択してください");
+        }
+    });
+
+    $('#uploadstaff').click(function () {
+        if ($('#staffFile').val().length > 0) {
+            $('#staffForm').submit();
+        } else {
+            $('#dis').text("店員情報CSVファイルを選択してください");
+        }
+    });
+
+</script>

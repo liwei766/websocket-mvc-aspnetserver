@@ -1,0 +1,83 @@
+﻿@using GPnaviServer.Models;
+
+@{
+    ViewData["Title"] = "Login";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@model UserMaster
+<script type="text/javascript">
+    $(function () {
+        $('#navi').hide();
+
+        $('#SessionKey').val(Cookies.get('SessionKey'));
+
+        $('#messages').empty('');
+        let viewBagMsg = '@ViewBag.Message';
+        if (viewBagMsg) {
+            $('#messages').append(`<li><font size="2">${viewBagMsg}</font></li>`);
+        }
+                     
+
+        if ($.trim($("#LoginId").val()).length == 0  &&  $.trim($("#Password").val()).length == 0 ) {
+            $("#loginclick").prop("disabled", true);
+            $("#loginclick").addClass("btn-disabled");
+        }
+
+        $("#LoginId").keyup(function (e) {
+            checkActive();
+        });        
+        $("#Password").keyup(function (e) {
+            checkActive();
+        });
+        //$("#LoginId").mousemove(function (e) {
+        //    checkActive();
+        //});
+        //$("#LoginId").mousedown(function (e) {
+        //    checkActive();
+        //});
+        //$("#LoginId").mouseup(function (e) {
+        //    checkActive();
+        //});
+        window.oninput = checkActive;
+     
+
+        function checkActive() {
+            if ($.trim($("#LoginId").val()).length > 0 && $.trim($("#Password").val()).length > 0) {
+                $("#loginclick").prop("disabled", false);
+                $("#loginclick").removeClass("btn-disabled");
+            } else {
+                $("#loginclick").prop("disabled", true);
+                $("#loginclick").addClass("btn-disabled");
+            }
+        }
+      
+    });
+
+
+
+</script>
+
+<div class="container">
+    <div class="row">
+        <div class="col-sm-7 col-md-5 col-md-offset-4 mx-auto">
+            <div class="account-wall">
+                <form class="form-signin" action="/Users/Home" method="post">
+                    <span>アカウントIDとパスワードを入力してログインしてください。</span>                   
+                    
+                    <br /><br /><ul id="messages" style="color: red;"></ul>
+                    
+                    <input type="text" class="form-control" placeholder="アカウントID" id="LoginId" name="LoginId" maxlength="25" required autofocus value="@Model?.LoginId">
+                    <input type="password" class="form-control" placeholder="パスワード" id="Password" name="Password" maxlength="25" required value="@Model?.Password">
+                    <input type="hidden" id="SessionKey" name="SessionKey" required>
+
+                    <button class="btn btn-lg btn-block btn-gpnavi box-shadow--2dp" style="border-radius:0" type="submit" id="loginclick">
+                        ログイン
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+   
+</div>
+

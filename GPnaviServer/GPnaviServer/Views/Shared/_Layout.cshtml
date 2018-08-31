@@ -1,0 +1,109 @@
+﻿@inject Microsoft.ApplicationInsights.AspNetCore.JavaScriptSnippet JavaScriptSnippet
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - GPnavi</title>
+
+    <link rel="stylesheet" href="~/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" />
+    <script type="text/javascript" src="~/js/jquery-3.3.1.min.js"></script>
+    <script type="text/javascript" src="~/js/popper.min.js"></script>
+    <script type="text/javascript" src="~/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css" integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
+    @*<link rel="stylesheet" href="~/css/fontawesome.css"  crossorigin="anonymous"/>*@
+
+    @Html.Raw(JavaScriptSnippet.FullScript)
+</head>
+<body>
+    <style>
+        body {            
+            background-color: #f8f9fa;
+            padding-top: 0px;
+        }
+    </style>
+    <script>
+        /**
+         * Minified by jsDelivr using UglifyJS v3.4.4.
+         * Original file: /npm/js-cookie@2.2.0/src/js.cookie.js
+         */
+        !function (e) { var n = !1; if ("function" == typeof define && define.amd && (define(e), n = !0), "object" == typeof exports && (module.exports = e(), n = !0), !n) { var o = window.Cookies, t = window.Cookies = e(); t.noConflict = function () { return window.Cookies = o, t } } }(function () { function g() { for (var e = 0, n = {}; e < arguments.length; e++) { var o = arguments[e]; for (var t in o) n[t] = o[t] } return n } return function e(l) { function C(e, n, o) { var t; if ("undefined" != typeof document) { if (1 < arguments.length) { if ("number" == typeof (o = g({ path: "/" }, C.defaults, o)).expires) { var r = new Date; r.setMilliseconds(r.getMilliseconds() + 864e5 * o.expires), o.expires = r } o.expires = o.expires ? o.expires.toUTCString() : ""; try { t = JSON.stringify(n), /^[\{\[]/.test(t) && (n = t) } catch (e) { } n = l.write ? l.write(n, e) : encodeURIComponent(String(n)).replace(/%(23|24|26|2B|3A|3C|3E|3D|2F|3F|40|5B|5D|5E|60|7B|7D|7C)/g, decodeURIComponent), e = (e = (e = encodeURIComponent(String(e))).replace(/%(23|24|26|2B|5E|60|7C)/g, decodeURIComponent)).replace(/[\(\)]/g, escape); var i = ""; for (var c in o) o[c] && (i += "; " + c, !0 !== o[c] && (i += "=" + o[c])); return document.cookie = e + "=" + n + i } e || (t = {}); for (var a = document.cookie ? document.cookie.split("; ") : [], s = /(%[0-9A-Z]{2})+/g, f = 0; f < a.length; f++) { var p = a[f].split("="), d = p.slice(1).join("="); this.json || '"' !== d.charAt(0) || (d = d.slice(1, -1)); try { var u = p[0].replace(s, decodeURIComponent); if (d = l.read ? l.read(d, u) : l(d, u) || d.replace(s, decodeURIComponent), this.json) try { d = JSON.parse(d) } catch (e) { } if (e === u) { t = d; break } e || (t[u] = d) } catch (e) { } } return t } } return (C.set = C).get = function (e) { return C.call(C, e) }, C.getJSON = function () { return C.apply({ json: !0 }, [].slice.call(arguments)) }, C.defaults = {}, C.remove = function (e, n) { C(e, "", g(n, { expires: -1 })) }, C.withConverter = e, C }(function () { }) });
+    </script>
+
+    <img src="../images/bg.png" alt="logo" width="100%" height="50">
+
+    <div class="container body-content">
+        <ul class="nav nav-pills" id="navi">
+
+            <li class="nav-item" id="topPageLink">
+                <form action="/Users/Home" name="form1" method="post">
+                    <input type="hidden" name="LoginId" id="topLoginId" />
+                    <input type="hidden" name="SessionKey" id="topSessionKey" />
+                    <i class="fa fa-caret-left" aria-hidden="true"></i>
+                    <a href="javascript:form1.submit()" style="text-decoration: underline;color: black;">TOPに戻る</a>
+                </form>
+            </li>
+
+            <li class="nav-item dropdown ml-auto">
+                <a class="dropdown-toggle" data-toggle="dropdown" href="#" style="text-decoration: underline;color: black;" id="naviUserName"></a>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" data-toggle="modal" data-target="#logoutModal">ログアウト</a>
+                </div>
+            </li>
+
+        </ul>
+
+        @RenderBody()
+
+        <!-- The logout Modal -->
+        <div class="modal fade" id="logoutModal">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+
+                    <!-- Modal Header -->
+                    <div class="modal-header" style="border-bottom-width: 0px;">
+                        <h4 class="modal-title">ログアウトしますか？</h4>
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    </div>
+
+                    <!-- Modal body -->
+                    <div class="modal-body">
+                    </div>
+
+                    <!-- Modal footer -->
+                    <div class="modal-footer" style="border-top-width: 0px;">
+                        <button type="button" class="btn btn-primary" data-dismiss="modal">キャンセル</button>
+                        <form action="/Users/Logout" method="post">
+                            <input type="hidden" name="LoginId"  id="naviLoginId" />
+                            <input type="hidden" name="SessionKey" id="naviSessionKey" />
+                            <button type="submit" class="btn btn-danger" id="logoutBtn">OK</button>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+ 
+</body>
+<script type="text/javascript">
+    $(function () {
+        $('#topLoginId').val(Cookies.get('LoginId'));
+        $('#topSessionKey').val(Cookies.get('SessionKey'));
+        $('#naviLoginId').val(Cookies.get('LoginId'));
+        $('#naviSessionKey').val(Cookies.get('SessionKey'));
+        $("#naviUserName").text(Cookies.get('LoginName'));
+    });
+
+    $('#logoutBtn').click(function (e) {
+        //$.post('../Users/Logout', { LoginId: Cookies.get('LoginId'), SessionKey: Cookies.get('SessionKey') });
+        Cookies.remove('SessionKey');
+        Cookies.remove('LoginId');
+        Cookies.remove('LoginName');
+        return true;
+    });
+</script>
+</html>

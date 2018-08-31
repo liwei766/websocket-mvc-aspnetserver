@@ -1,0 +1,13 @@
+C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer
+--output-path=obj\Release\netcoreapp2.0\
+--application-name=GPnaviServer
+--content-root=C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer
+--file=C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\Views\Home\Index.cshtml
+--file=C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\Views\Shared\Error.cshtml
+--file=C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\Views\Shared\_Layout.cshtml
+--file=C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\Views\Shared\_ValidationScriptsPartial.cshtml
+--file=C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\Views\Users\Home.cshtml
+--file=C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\Views\Users\Login.cshtml
+--file=C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\Views\WS\Upload.cshtml
+--file=C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\Views\_ViewImports.cshtml
+--file=C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\Views\_ViewStart.cshtml

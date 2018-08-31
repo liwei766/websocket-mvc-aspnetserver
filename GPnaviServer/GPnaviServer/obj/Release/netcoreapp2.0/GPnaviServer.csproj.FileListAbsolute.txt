@@ -1,0 +1,11 @@
+C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\bin\Release\netcoreapp2.0\GPnaviServer.deps.json
+C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\bin\Release\netcoreapp2.0\GPnaviServer.runtimeconfig.json
+C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\bin\Release\netcoreapp2.0\GPnaviServer.runtimeconfig.dev.json
+C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\bin\Release\netcoreapp2.0\GPnaviServer.dll
+C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\bin\Release\netcoreapp2.0\GPnaviServer.pdb
+C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\obj\Release\netcoreapp2.0\GPnaviServer.csproj.CoreCompileInputs.cache
+C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\obj\Release\netcoreapp2.0\GPnaviServer.AssemblyInfoInputs.cache
+C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\obj\Release\netcoreapp2.0\GPnaviServer.AssemblyInfo.cs
+C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\obj\Release\netcoreapp2.0\GPnaviServer.dll
+C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\obj\Release\netcoreapp2.0\GPnaviServer.pdb
+C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\obj\Release\netcoreapp2.0\GPnaviServer.csprojAssemblyReference.cache
