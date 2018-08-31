@@ -108,8 +108,26 @@ namespace GPnaviServer.Controllers
         }
 
         [HttpPost("uploaduserdata")]
-        public async Task<IActionResult> uploadUserData(IFormFile file)
+        public async Task<IActionResult> uploadUserData(IFormFile file, string LoginId, string SessionKey)
         {
+            UserStatus userStatus = null;
+            if (string.IsNullOrEmpty(LoginId) || string.IsNullOrEmpty(SessionKey))
+            {
+                return View("~/Views/Users/Login.cshtml");
+            }
+            else
+            {
+                userStatus = _userStatusService.GetById(LoginId);
+                if (userStatus == null || !string.Equals(SessionKey, userStatus.SessionKey))
+                {
+                    return View("~/Views/Users/Login.cshtml");
+                }
+            }
+
+            if (file.Length<1)
+            {
+                return View("~/Views/WS/Upload.cshtml", userStatus);
+            }
 
             var config = new CsvHelper.Configuration.Configuration
             {
@@ -127,7 +145,7 @@ namespace GPnaviServer.Controllers
 
                 if (csvValidationUserErr(userCsvRow, out userList))
                 {
-                    return View("~/Views/WS/Upload.cshtml");
+                    return View("~/Views/WS/Upload.cshtml", userStatus);
                 }
 
                 _userVersionService.Add();
@@ -139,7 +157,7 @@ namespace GPnaviServer.Controllers
             }
 
 
-            return View("~/Views/WS/Upload.cshtml");
+            return View("~/Views/WS/Upload.cshtml", userStatus);
         }
 
 

@@ -105,6 +105,10 @@ namespace GPnaviServer.Controllers
                 }
             }
 
+            if (file.Length < 1)
+            {
+                return View("upload", userStatus);
+            }
 
             var config = new CsvHelper.Configuration.Configuration
             {
