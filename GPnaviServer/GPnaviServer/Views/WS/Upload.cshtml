@@ -27,8 +27,6 @@
                     </span>
                 </label>
             </div>
-            <input type="hidden" name="LoginId" />
-            <input type="hidden" name="SessionKey"/>
             <div>
                 <button class="btn float-right btn-gpnavi" id="uploadws" type="button">
                     アップロード
@@ -47,8 +45,6 @@
                     </span>
                 </label>
             </div>
-            <input type="hidden" name="LoginId" />
-            <input type="hidden" name="SessionKey" />
             <div>
                 <button class="btn float-right btn-gpnavi" id="uploadstaff" type="button">
                     アップロード
@@ -62,8 +58,6 @@
 </div>
 
 <script>
-    $('input[name=LoginId]').val(Cookies.get('LoginId'));
-    $('input[name=SessionKey]').val(Cookies.get('SessionKey')); 
 
     $(document).on('change', ':file', function () {
         var input = $(this),

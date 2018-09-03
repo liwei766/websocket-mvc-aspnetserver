@@ -16,51 +16,43 @@
         Cookies.set('LoginName', '@ViewBag.LoginName');
 
 
-        let stateChain = 0;
+        let eventChain = 0;
         $(".home-btn").hover(
             function () {
-                //console.log(1);
                 $(this).before($('#hover'));
                 $('#hover').prop('hidden', false);
             },
             function () {
-                //console.log(2);
+                ;
             }
         );
 
         $("#hover").hover(
             function () {
-                //console.log(100);
+                ;
             },
             function () {
                 $('#hover').prop('hidden', true);
                 $('#operations').prepend($('#hover'));
-                //console.log(102);
-                stateChain = stateChain==204? 204102:0;
+                eventChain = eventChain==1? 2:0;
             }
         );
 
 
         $("#hover").mouseup(function () {
-            //console.log(203);
         }).mousedown(
             function () {
-                //$(this).toggleClass('alpha-btn');
-                //console.log(204);
                 $(this).before($('#press'));
                 $('#press').prop('hidden', false);
                 $('#hover').prop('hidden', true);
                 $('#operations').prepend($('#hover'));
 
-                stateChain = 204;
+                eventChain = 1;
             }
         );
 
         $("#press").mouseup(function () {
-            //console.log(303);
-            if (stateChain == 204102) {
-                //console.log("submit");
-                //console.log($(this).parent().attr('href'));
+            if (eventChain == 2) {
                 $(this).parent()[0].click();
             }
             $('#hover').prop('hidden', true);
@@ -70,13 +62,11 @@
 
         }).mousedown(
             function () {
-                //$(this).toggleClass('alpha-btn');
-                //console.log(304);
+                ;
             }
         );
 
         $("#press").mouseleave(function () {
-            //console.log(888);
             $('#operations').prepend($('#press'));
             $('#press').prop('hidden', true);
         });      

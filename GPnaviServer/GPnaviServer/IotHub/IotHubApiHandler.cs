@@ -15,6 +15,15 @@ namespace GPnaviServer.IotHub
     public class IotHubApiHandler : IotHubHandler
     {
         /// <summary>
+        /// センサー区分TRASHのメッセージ
+        /// </summary>
+        private const string MESSAGE_TRASH = "{0}が一杯になりました。";
+        /// <summary>
+        /// センサー区分POTのメッセージ
+        /// </summary>
+        private const string MESSAGE_POT = "{0}に給水してください。";
+
+        /// <summary>
         /// DateTimeを文字列化するときのフォーマットプロバイダ
         /// </summary>
         public CultureInfo CultureInfoApi => CultureInfo.CreateSpecificCulture("ja-JP");
@@ -140,12 +149,13 @@ namespace GPnaviServer.IotHub
                 await _context.SaveChangesAsync();
 
                 _logger.LogTrace(LoggingEvents.IotHubReceive, "センサー検知を送信する");
+                var displayMessage = sensorMaster.SensorType.Equals(ApiConstant.SENSOR_TYPE_TRASH) ? string.Format(MESSAGE_TRASH, sensorStatus.DisplayName) : string.Format(MESSAGE_POT, sensorStatus.DisplayName);
                 var apiSensorPush = new ApiSensorPush
                 {
                     message_name = ApiConstant.MESSAGE_SENSOR_PUSH,
                     sensor_id = sensorStatus.SensorId,
                     sensor_type = sensorStatus.SensorType,
-                    display_message = sensorStatus.DisplayName,
+                    display_message = displayMessage,
                     date = sensorStatus.OccurrenceDate.ToString(DateTimeFormat, CultureInfoApi)
                 };
                 var apiSensorPushJson = JsonConvert.SerializeObject(apiSensorPush);
