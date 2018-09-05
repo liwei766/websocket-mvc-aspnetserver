@@ -2,6 +2,8 @@
 using GPnaviServer.Models;
 using GPnaviServer.WebSockets;
 using GPnaviServer.WebSockets.APIs;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
@@ -33,12 +35,18 @@ namespace GPnaviServer.IotHub
         public string DateTimeFormat => @"yyyy/MM/dd HH:mm:ss.fff";
 
         /// <summary>
-        /// DBコンテキスト
+        /// 設定
         /// </summary>
-        private readonly GPnaviServerContext _context;
-        public IotHubApiHandler(IotHubConnectionManager iotHubConnectionManager, GPnaviServerContext dbContext, ILogger<IotHubApiHandler> logger) : base(iotHubConnectionManager, logger)
+        public IConfiguration Configuration { get; }
+        /// <summary>
+        /// コンストラクタ
+        /// </summary>
+        /// <param name="iotHubConnectionManager">マネージャ</param>
+        /// <param name="logger">ロガー</param>
+        /// <param name="configuration">設定</param>
+        public IotHubApiHandler(IotHubConnectionManager iotHubConnectionManager, ILogger<IotHubApiHandler> logger, IConfiguration configuration) : base(iotHubConnectionManager, logger)
         {
-            _context = dbContext;
+            Configuration = configuration;
         }
 
         protected override async Task OnReceiveAsync(string json)
@@ -82,117 +90,124 @@ namespace GPnaviServer.IotHub
         private async Task SensorEventControllerAsync(string json)
         {
             _logger.LogInformation(LoggingEvents.IotHubReceive, "SensorEventControllerAsync START");
-            try
+
+            var options = new DbContextOptionsBuilder<GPnaviServerContext>()
+                .UseSqlServer(Configuration.GetConnectionString("DefaultConnection"))
+                .Options;
+            using (var context = new GPnaviServerContext(options))
             {
-                _logger.LogTrace(LoggingEvents.IotHubReceive, "パース");
-                var apiSensorEvent = JsonConvert.DeserializeObject<ApiSensorEvent>(json);
+                try
+                {
+                    _logger.LogTrace(LoggingEvents.IotHubReceive, "パース");
+                    var apiSensorEvent = JsonConvert.DeserializeObject<ApiSensorEvent>(json);
 
-                _logger.LogTrace(LoggingEvents.IotHubReceive, "バリデーションチェック");
-                var (result, message) = IsInvalidApiSensorEvent(apiSensorEvent);
-                if (result)
-                {
-                    _logger.LogError(LoggingEvents.Validation, $"バリデーションエラー {message}");
-                    return;
-                }
-
-                _logger.LogTrace(LoggingEvents.IotHubReceive, "センサーマスタ検索");
-                var sensorMaster = _context.SensorMasters.FirstOrDefault(e => e.SensorId.Equals(apiSensorEvent.sensor_id));
-                if (sensorMaster == null)
-                {
-                    _logger.LogError(LoggingEvents.Validation, $"センサーマスタにセンサーID {apiSensorEvent.sensor_id} が存在しない");
-                    return;
-                }
-
-                _logger.LogTrace(LoggingEvents.IotHubReceive, "センサーマスタ登録内容のバリデーションチェック");
-                if (!(sensorMaster.SensorType.Equals(ApiConstant.SENSOR_TYPE_POT) || sensorMaster.SensorType.Equals(ApiConstant.SENSOR_TYPE_TRASH)))
-                {
-                    _logger.LogError(LoggingEvents.Validation, $"センサーマスタのセンサーデバイス区分 {sensorMaster.SensorType} が不正");
-                    return;
-                }
-                if (string.IsNullOrWhiteSpace(sensorMaster.DisplayName))
-                {
-                    _logger.LogError(LoggingEvents.Validation, $"センサーマスタの表示名 {sensorMaster.SensorType} が不正");
-                    return;
-                }
-
-                _logger.LogTrace(LoggingEvents.IotHubReceive, "突発作業状態を検索");
-                var sensorStatus = _context.SensorStatuses.FirstOrDefault(e => e.SensorId.Equals(sensorMaster.SensorId));
-                if (sensorStatus != null)
-                {
-                    _logger.LogTrace(LoggingEvents.IotHubReceive, "前回の発生時刻と比較");
-                    var timeSpan = DateTime.Now - sensorStatus.OccurrenceDate;
-                    if (timeSpan.TotalMinutes < 1)
+                    _logger.LogTrace(LoggingEvents.IotHubReceive, "バリデーションチェック");
+                    var (result, message) = IsInvalidApiSensorEvent(apiSensorEvent);
+                    if (result)
                     {
-                        _logger.LogTrace(LoggingEvents.IotHubReceive, "頻発しているのでイベントを捨てる");
+                        _logger.LogError(LoggingEvents.Validation, $"バリデーションエラー {message}");
                         return;
+                    }
+
+                    _logger.LogTrace(LoggingEvents.IotHubReceive, "センサーマスタ検索");
+                    var sensorMaster = context.SensorMasters.FirstOrDefault(e => e.SensorId.Equals(apiSensorEvent.sensor_id));
+                    if (sensorMaster == null)
+                    {
+                        _logger.LogError(LoggingEvents.Validation, $"センサーマスタにセンサーID {apiSensorEvent.sensor_id} が存在しない");
+                        return;
+                    }
+
+                    _logger.LogTrace(LoggingEvents.IotHubReceive, "センサーマスタ登録内容のバリデーションチェック");
+                    if (!(sensorMaster.SensorType.Equals(ApiConstant.SENSOR_TYPE_POT) || sensorMaster.SensorType.Equals(ApiConstant.SENSOR_TYPE_TRASH)))
+                    {
+                        _logger.LogError(LoggingEvents.Validation, $"センサーマスタのセンサーデバイス区分 {sensorMaster.SensorType} が不正");
+                        return;
+                    }
+                    if (string.IsNullOrWhiteSpace(sensorMaster.DisplayName))
+                    {
+                        _logger.LogError(LoggingEvents.Validation, $"センサーマスタの表示名 {sensorMaster.SensorType} が不正");
+                        return;
+                    }
+
+                    _logger.LogTrace(LoggingEvents.IotHubReceive, "突発作業状態を検索");
+                    var sensorStatus = context.SensorStatuses.FirstOrDefault(e => e.SensorId.Equals(sensorMaster.SensorId));
+                    if (sensorStatus != null)
+                    {
+                        _logger.LogTrace(LoggingEvents.IotHubReceive, "前回の発生時刻と比較");
+                        var timeSpan = DateTime.Now - sensorStatus.OccurrenceDate;
+                        if (timeSpan.TotalMinutes < 1)
+                        {
+                            _logger.LogTrace(LoggingEvents.IotHubReceive, "頻発しているのでイベントを捨てる");
+                            return;
+                        }
+                        else
+                        {
+                            _logger.LogTrace(LoggingEvents.IotHubReceive, "突発作業発生時刻を更新");
+                            sensorStatus.OccurrenceDate = DateTime.Now;
+                        }
                     }
                     else
                     {
-                        _logger.LogTrace(LoggingEvents.IotHubReceive, "突発作業発生時刻を更新");
-                        sensorStatus.OccurrenceDate = DateTime.Now;
+                        _logger.LogTrace(LoggingEvents.IotHubReceive, "突発作業状態を追加");
+                        sensorStatus = new SensorStatus
+                        {
+                            SensorId = sensorMaster.SensorId,
+                            SensorType = sensorMaster.SensorType,
+                            DisplayName = sensorMaster.DisplayName,
+                            OccurrenceDate = DateTime.Now
+                        };
+                        context.Add(sensorStatus);
                     }
-                }
-                else
-                {
-                    _logger.LogTrace(LoggingEvents.IotHubReceive, "突発作業状態を追加");
-                    sensorStatus = new SensorStatus
+
+                    _logger.LogTrace(LoggingEvents.IotHubReceive, "保存する");
+                    await context.SaveChangesAsync();
+
+                    _logger.LogTrace(LoggingEvents.IotHubReceive, "センサー検知を送信する");
+                    var displayMessage = sensorMaster.SensorType.Equals(ApiConstant.SENSOR_TYPE_TRASH) ? string.Format(MESSAGE_TRASH, sensorStatus.DisplayName) : string.Format(MESSAGE_POT, sensorStatus.DisplayName);
+                    var apiSensorPush = new ApiSensorPush
                     {
-                        SensorId = sensorMaster.SensorId,
-                        SensorType = sensorMaster.SensorType,
-                        DisplayName = sensorMaster.DisplayName,
-                        OccurrenceDate = DateTime.Now
+                        message_name = ApiConstant.MESSAGE_SENSOR_PUSH,
+                        sensor_id = sensorStatus.SensorId,
+                        sensor_type = sensorStatus.SensorType,
+                        display_message = displayMessage,
+                        date = sensorStatus.OccurrenceDate.ToString(DateTimeFormat, CultureInfoApi)
                     };
-                    _context.Add(sensorStatus);
-                }
+                    var apiSensorPushJson = JsonConvert.SerializeObject(apiSensorPush);
 
-                _logger.LogTrace(LoggingEvents.IotHubReceive, "保存する");
-                await _context.SaveChangesAsync();
+                    var androidTokens = context.UserStatuses.Where(e => e.DeviceType.Equals(ApiConstant.DEVICE_TYPE_ANDROID)).Select(e => e.DeviceToken).ToList();
+                    if (androidTokens.Count > 0)
+                    {
+                        await PushToNotificationHub.SendNotificationGcmAsync(apiSensorPushJson, androidTokens);
+                    }
+                    else
+                    {
+                        _logger.LogTrace(LoggingEvents.IotHubReceive, "Androidデバイスが登録されていない");
+                    }
 
-                _logger.LogTrace(LoggingEvents.IotHubReceive, "センサー検知を送信する");
-                var displayMessage = sensorMaster.SensorType.Equals(ApiConstant.SENSOR_TYPE_TRASH) ? string.Format(MESSAGE_TRASH, sensorStatus.DisplayName) : string.Format(MESSAGE_POT, sensorStatus.DisplayName);
-                var apiSensorPush = new ApiSensorPush
-                {
-                    message_name = ApiConstant.MESSAGE_SENSOR_PUSH,
-                    sensor_id = sensorStatus.SensorId,
-                    sensor_type = sensorStatus.SensorType,
-                    display_message = displayMessage,
-                    date = sensorStatus.OccurrenceDate.ToString(DateTimeFormat, CultureInfoApi)
-                };
-                var apiSensorPushJson = JsonConvert.SerializeObject(apiSensorPush);
+                    var iotTokens = context.UserStatuses.Where(e => e.DeviceType.Equals(ApiConstant.DEVICE_TYPE_IOT)).Select(e => e.DeviceToken).ToList();
+                    if (iotTokens.Count > 0)
+                    {
+                        await PushToNotificationHub.SendNotificationWindowsAsync(apiSensorPushJson, iotTokens);
+                    }
+                    else
+                    {
+                        _logger.LogTrace(LoggingEvents.IotHubReceive, "IoTデバイスが登録されていない");
+                    }
 
-                var androidTokens = _context.UserStatuses.Where(e => e.DeviceType.Equals(ApiConstant.DEVICE_TYPE_ANDROID)).Select(e => e.DeviceToken).ToList();
-                if (androidTokens.Count > 0)
-                {
-                    await PushToNotificationHub.SendNotificationGcmAsync(apiSensorPushJson, androidTokens);
+                    _logger.LogInformation(LoggingEvents.PushMessageAsync, $"センサー検知の送信に成功しました。{apiSensorPushJson}");
                 }
-                else
+                catch (JsonWriterException ex)
                 {
-                    _logger.LogTrace(LoggingEvents.IotHubReceive, "Androidデバイスが登録されていない");
+                    _logger.LogError(LoggingEvents.ApiFormat, $"装置間IFフォーマットに変換できませんでした。{ex.Message}");
                 }
-
-                var iotTokens = _context.UserStatuses.Where(e => e.DeviceType.Equals(ApiConstant.DEVICE_TYPE_IOT)).Select(e => e.DeviceToken).ToList();
-                if (iotTokens.Count > 0)
+                catch (JsonReaderException ex)
                 {
-                    await PushToNotificationHub.SendNotificationWindowsAsync(apiSensorPushJson, iotTokens);
+                    _logger.LogError(LoggingEvents.ApiFormat, $"装置間IFフォーマットではありません。{ex.Message}");
                 }
-                else
+                catch (Exception ex)
                 {
-                    _logger.LogTrace(LoggingEvents.IotHubReceive, "IoTデバイスが登録されていない");
+                    _logger.LogError(LoggingEvents.Exception, ex, "SensorEventControllerAsync unknown error.");
                 }
-
-                _logger.LogInformation(LoggingEvents.PushMessageAsync, $"センサー検知の送信に成功しました。{apiSensorPushJson}");
-            }
-            catch (JsonWriterException ex)
-            {
-                _logger.LogError(LoggingEvents.ApiFormat, $"装置間IFフォーマットに変換できませんでした。{ex.Message}");
-            }
-            catch (JsonReaderException ex)
-            {
-                _logger.LogError(LoggingEvents.ApiFormat, $"装置間IFフォーマットではありません。{ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(LoggingEvents.Exception, ex, "SensorEventControllerAsync unknown error.");
             }
         }
         /// <summary>

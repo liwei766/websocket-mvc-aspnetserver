@@ -96,7 +96,11 @@ namespace GPnaviServer.WebSockets
             }
             catch (WebSocketException ex)
             {
-                _logger.LogError(LoggingEvents.Exception, ex, $"Closeなしで切断されたため例外が発生 : {ex.Message}");
+                _logger.LogError(LoggingEvents.Exception, $"Closeなしで切断されたため例外が発生 : {ex.Message}");
+            }
+            catch(TaskCanceledException ex)
+            {
+                _logger.LogError(LoggingEvents.Exception, $"サーバ再起動時のキャンセルが発生 : {ex.Message}");
             }
             catch (Exception ex)
             {

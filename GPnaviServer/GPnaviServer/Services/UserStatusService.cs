@@ -49,6 +49,8 @@ namespace GPnaviServer.Services
 
             userStatus.LoginId = loginId;
             userStatus.SessionKey = sessionKey;
+            userStatus.DeviceToken = "";
+            userStatus.DeviceType = "";
 
             _context.UserStatuses.Add(userStatus);
             _context.SaveChanges();

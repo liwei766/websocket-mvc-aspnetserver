@@ -10,7 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <DestinationConnectionStrings Include="DefaultConnection">
-      <Value>Data Source=tcp:gpnavi.database.windows.net,1433;Initial Catalog=gpnavi_db;User Id=ServerAdmin;Password=MinGpn20!8;</Value>
+      <Value>Data Source=tcp:gpnavi.database.windows.net,1433;Initial Catalog=gpnavi_db;User Id=ServerAdmin;Password=MinGpn20!8;MultipleActiveResultSets=true;</Value>
     </DestinationConnectionStrings>
   </ItemGroup>
 </Project>

@@ -18,7 +18,7 @@ select max(id) from WorkScheduleVersions;
 select * from WorkScheduleMasters;
 delete from WorkScheduleMasters where Version>0;
 select * from WorkScheduleMasters where Version=25;
-update WorkScheduleMasters set Start='1:00' where Version=25;
+update WorkScheduleMasters set Start='23:00' where Version=10054;
 
 select * from WorkStatusHistories;
 select * from SensorStatuses;
