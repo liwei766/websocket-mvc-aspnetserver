@@ -12,6 +12,7 @@ using GPnaviServer.Dtos;
 using GPnaviServer.Services;
 using AutoMapper;
 using System.Text.RegularExpressions;
+using GPnaviServer.WebSockets.APIs;
 
 namespace GPnaviServer.Controllers
 {
@@ -48,11 +49,11 @@ namespace GPnaviServer.Controllers
                 if (status != null && string.Equals(sessionKey, status.SessionKey))
                 {
                     ViewBag.LoginName = _userService.GetById(loginId).LoginName;
-                    return View();
+                    return View("TimeAggregate");
                 }
             }
 
-            return View("TimeAggregate");
+            return View("~/Views/Users/Login.cshtml");
         }
 
         [HttpGet("DayAggregate")]
@@ -64,11 +65,11 @@ namespace GPnaviServer.Controllers
                 if (status != null && string.Equals(sessionKey, status.SessionKey))
                 {
                     ViewBag.LoginName = _userService.GetById(loginId).LoginName;
-                    return View();
+                    return View("DayAggregate");
                 }
             }
 
-            return View("DayAggregate");
+            return View("~/Views/Users/Login.cshtml");
         }
 
         [HttpGet("upload")]
@@ -150,12 +151,39 @@ namespace GPnaviServer.Controllers
         {
             wsmList = new List<WorkScheduleMaster>();
 
+            //スタート時刻のフォーマット
             Regex checktime = new Regex(@"^([0-9]|0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$");
 
+            //時間としての分のフォーマット
             Regex checkMinute = new Regex(@"^[0-9]*[1-9][0-9]*$");
 
+            //スタート時刻の桁数の最小限
+            const int START_LENGTH_MIN = 4;
+
+            //作業名の桁数の最小限
+            const int WS_NAME_LENGTH_MAX = 40;
+
+            //短縮作業名の桁数の最小限
+            const int WS_SHORTNAME_LENGTH_MAX = 20;
+
+
             var prioritySet = new HashSet<string>(){ "H", "M", "L" };
-            var holidaySet = new HashSet<string>() { "0", "1"};
+            var iconIdSet = new HashSet<string>()
+            {
+                "0000",
+                "0001",
+                "0002",
+                "0003",
+                "0004",
+                "0005",
+                "0006",
+                "0007",
+                "0008",
+                "0009",
+                "0010",
+                "0011"
+            };
+            var holidaySet = new HashSet<string>() {ApiConstant.HOLIDAY_FALSE, ApiConstant.HOLIDAY_TRUE};
 
             int line = 0;
             foreach (var ws in wsCsvRow)
@@ -173,7 +201,7 @@ namespace GPnaviServer.Controllers
                     ViewBag.Message = $"{line}行目の作業開始時間は時間の形式ではありません";
                     return true;
                 }
-                if (ws.Start.Length==4)
+                if (ws.Start.Length== START_LENGTH_MIN)
                 {
                     ws.Start = "0" + ws.Start;
                 }
@@ -183,7 +211,7 @@ namespace GPnaviServer.Controllers
                     ViewBag.Message = $"{line}行目の作業名がありません";
                     return true;
                 }
-                if ( ws.Name.Length > 40)
+                if ( ws.Name.Length > WS_NAME_LENGTH_MAX)
                 {
                     ViewBag.Message = $"{line}行目の作業名の文字数が40をこえています";
                     return true;
@@ -195,7 +223,7 @@ namespace GPnaviServer.Controllers
                     ViewBag.Message = $"{line}行目の短縮作業名がありません";
                     return true;
                 }
-                if (ws.ShortName.Length > 20)
+                if (ws.ShortName.Length > WS_SHORTNAME_LENGTH_MAX)
                 {
                     ViewBag.Message = $"{line}行目の短縮作業名の文字数が20をこえています";
                     return true;
@@ -204,7 +232,7 @@ namespace GPnaviServer.Controllers
 
                 if (string.IsNullOrWhiteSpace(ws.Priority))
                 {
-                    ViewBag.Message = $"{line}行目重要度がありません";
+                    ViewBag.Message = $"{line}行目の重要度がありません";
                     return true;
                 }
                 if ( !prioritySet.Contains(ws.Priority))
@@ -215,13 +243,18 @@ namespace GPnaviServer.Controllers
 
                 if (string.IsNullOrWhiteSpace(ws.IconId))
                 {
-                    ViewBag.Message = $"{line}行目作業アイコンIDがありません" ;
+                    ViewBag.Message = $"{line}行目の作業アイコンIDがありません" ;
+                    return true;
+                }
+                if (!iconIdSet.Contains(ws.IconId))
+                {
+                    ViewBag.Message = $"{line}行目の作業アイコンIDは不正な値が使用されています";
                     return true;
                 }
 
                 if (string.IsNullOrWhiteSpace(ws.Time))
                 {
-                    ViewBag.Message = $"{line}行目標準作業時間（分）がありません";
+                    ViewBag.Message = $"{line}行目の標準作業時間（分）がありません";
                     return true;
                 }
                 if ( !checkMinute.IsMatch(ws.Time))

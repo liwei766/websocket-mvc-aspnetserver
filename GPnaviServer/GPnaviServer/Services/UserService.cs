@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using GPnaviServer.Data;
 using Microsoft.EntityFrameworkCore;
+using GPnaviServer.WebSockets.APIs;
 
 namespace GPnaviServer.Services
 {
@@ -32,7 +33,7 @@ namespace GPnaviServer.Services
         {
             userList.ForEach(user =>
             {
-                user.Role = "0";
+                user.Role = ApiConstant.ROLE_WORK;
                 user.IsValid = true;
                 user.Password = CreatePasswordHash(user.Password);
                 user.RemoveDate = DateTime.MaxValue;
@@ -49,7 +50,7 @@ namespace GPnaviServer.Services
             var changedUserlist = new List<UserMaster>();
             userList.ForEach(user =>
             {
-                user.Role = "0";
+                user.Role = ApiConstant.ROLE_WORK;
                 user.IsValid = true;
                 user.Password = CreatePasswordHash(user.Password);
                 user.RemoveDate = DateTime.MaxValue;
@@ -72,7 +73,7 @@ namespace GPnaviServer.Services
             });
             _context.SaveChanges();
 
-            var allUsers = _context.UserMasters.Where(userdb => userdb.IsValid == true && userdb.Role=="0" && userdb.RemoveDate == DateTime.MaxValue ).ToArray();
+            var allUsers = _context.UserMasters.Where(userdb => userdb.IsValid && userdb.Role== ApiConstant.ROLE_WORK && userdb.RemoveDate == DateTime.MaxValue ).ToArray();
 
             var expiredUserList = allUsers.Except(changedUserlist);
 
@@ -94,7 +95,7 @@ namespace GPnaviServer.Services
             if (string.IsNullOrEmpty(loginId) || string.IsNullOrEmpty(password))
                 return null;
 
-            var user = _context.UserMasters.SingleOrDefault(x => x.LoginId == loginId);
+            var user = _context.UserMasters.SingleOrDefault(x => x.LoginId == loginId && x.IsValid);
 
             // check if username exists
             if (user == null)

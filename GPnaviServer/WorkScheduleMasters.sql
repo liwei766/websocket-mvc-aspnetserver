@@ -2,9 +2,9 @@
 delete from UserVersions
 
 select * from UserMasters where LoginId='test';
-update UserMasters set LoginName='admin' where LoginId='test';
+update UserMasters set LoginName='admin',IsValid='1' where LoginId='test';
 
-//田中一郎
+--田中一郎
 
 delete from UserMasters where role='0' ;
 

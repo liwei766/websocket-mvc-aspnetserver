@@ -34,7 +34,7 @@
             function () {
                 $('#hover').prop('hidden', true);
                 $('#operations').prepend($('#hover'));
-                eventChain = eventChain==1? 2:0;
+                eventChain = eventChain==1 ? 2 : 0;
             }
         );
 
@@ -46,7 +46,6 @@
                 $('#press').prop('hidden', false);
                 $('#hover').prop('hidden', true);
                 $('#operations').prepend($('#hover'));
-
                 eventChain = 1;
             }
         );
@@ -55,22 +54,17 @@
             if (eventChain == 2) {
                 $(this).parent()[0].click();
             }
-            $('#hover').prop('hidden', true);
             $('#hover').prop('hidden', false);
             $('#operations').prepend($('#press'));
             $('#press').prop('hidden', true);
-
-        }).mousedown(
-            function () {
-                ;
-            }
-        );
+        });
 
         $("#press").mouseleave(function () {
             $('#operations').prepend($('#press'));
             $('#press').prop('hidden', true);
         });      
     });
+  
 </script>
 
 <div class="container">

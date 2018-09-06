@@ -161,37 +161,46 @@ namespace GPnaviServer.Controllers
         }
 
 
-        public IActionResult Register([FromBody]UserDto userDto)
-        {
-            // map dto to entity
-            var user = _mapper.Map<UserMaster>(userDto);
+        //public IActionResult Register([FromBody]UserDto userDto)
+        //{
+        //    // map dto to entity
+        //    var user = _mapper.Map<UserMaster>(userDto);
 
-            try
-            {
-                // save 
-                _userService.Create(user, userDto.Password);
-                return Ok();
-            }
-            catch (AppException ex)
-            {
-                // return error message if there was an exception
-                return BadRequest(ex.Message);
-            }
-        }
+        //    try
+        //    {
+        //        // save 
+        //        _userService.Create(user, userDto.Password);
+        //        return Ok();
+        //    }
+        //    catch (AppException ex)
+        //    {
+        //        // return error message if there was an exception
+        //        return BadRequest(ex.Message);
+        //    }
+        //}
 
-        [HttpGet("allusers")]
-        public IActionResult GetAll()
-        {
-            var users = _userService.GetAll();
-            var userDtos = _mapper.Map<IList<UserDto>>(users);
-            return Ok(userDtos);
-        }
+        //[HttpGet("allusers")]
+        //public IActionResult GetAll()
+        //{
+        //    var users = _userService.GetAll();
+        //    var userDtos = _mapper.Map<IList<UserDto>>(users);
+        //    return Ok(userDtos);
+        //}
 
         private bool csvValidationUserErr(IEnumerable<UserCsvRow> userCsvRow, out List<UserMaster> userList)
         {
             userList = new List<UserMaster>();
 
             var loginIdHs = new HashSet<string>();
+
+            //ユーザーIDの最大文字数
+            const int LOGINID_LENGTH_MAX = 3;
+
+            //ユーザー名の最大文字数
+            const int LOGINNAME_LENGTH_MAX = 16;
+
+            //パースワード文字数
+            const int PASSWORD_LENGTH_MAX = 4;
 
 
             int line = 0;
@@ -206,7 +215,7 @@ namespace GPnaviServer.Controllers
                     ViewBag.Message = $"{line}行目の担当者IDがありません";
                     return true;
                 }
-                if (user.LoginId.Length > 3 )
+                if (user.LoginId.Length > LOGINID_LENGTH_MAX)
                 {
                     ViewBag.Message = $"{line}行目の担当者IDの文字数が3をこえています";
                     return true;
@@ -222,7 +231,7 @@ namespace GPnaviServer.Controllers
                     ViewBag.Message = $"{line}行目の担当者名がありません";
                     return true;
                 }
-                if ( user.LoginName.Length > 16)
+                if ( user.LoginName.Length > LOGINNAME_LENGTH_MAX)
                 {
                     ViewBag.Message = $"{line}行目の担当者名の文字数が16をこえています";
                     return true;
@@ -234,7 +243,7 @@ namespace GPnaviServer.Controllers
                     ViewBag.Message = $"{line}行目のパスワードがありません";
                     return true;
                 }
-                if ( user.Password.Length > 4 )
+                if ( user.Password.Length > PASSWORD_LENGTH_MAX)
                 {
                     ViewBag.Message = $"{line}行目のパスワードの文字数が4をこえています";
                     return true;

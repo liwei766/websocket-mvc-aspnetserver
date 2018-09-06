@@ -35,6 +35,14 @@ namespace GPnaviServer.WebSockets
         /// WS作業状態の有効期限（単位：時間）
         /// </summary>
         private const int WS_STATUS_LIMIT = 12;
+        /// <summary>
+        /// WS作業照会の時間範囲、現在日時の-12時間～+12時間　（単位：時間）
+        /// </summary>
+        private const int WS_TIME_RANGE = 12;
+        /// <summary>
+        /// 一日の時間数（単位：時間）
+        /// </summary>
+        private const int ONE_DAY_HOURS = 24;
 
         /// <summary>
         /// DateTimeを文字列化するときのフォーマットプロバイダ
@@ -1829,8 +1837,8 @@ namespace GPnaviServer.WebSockets
 
                     //①WS作業開始時刻には日付が存在しないため、現在日時の-12時間～+12時間の範囲のWS作業開始日時を生成する。
                     var now = DateTime.Now;
-                    var startTime = now.AddHours(-12);
-                    var endTime = now.AddHours(12);
+                    var startTime = now.AddHours(-WS_TIME_RANGE);
+                    var endTime = now.AddHours(WS_TIME_RANGE);
 
                     //WSマスタバージョン取得。もし存在しないため、WSマスタが存在しない[ERR07]
                     _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"WSマスタバージョンの検索");
@@ -1857,19 +1865,28 @@ namespace GPnaviServer.WebSockets
                     wsms = wsms.Where(item => {
 
                         //休日判別で不具合なデータをフィルターする（正しいデータのみを選択）
-                        var dayMiddle = DateTime.Today.AddHours(12);
+                        var dayMiddle = DateTime.Today.AddHours(WS_TIME_RANGE);
                         var startDateTimeTmp = DateTime.Today.Add(TimeSpan.Parse(item.Start));
 
                         if (now <= dayMiddle && startDateTimeTmp > endTime)
                         {
-                            startDateTimeTmp = startDateTimeTmp.AddHours(-24);
+                            startDateTimeTmp = startDateTimeTmp.AddHours(-ONE_DAY_HOURS);
                         }
                         else if(now > dayMiddle && startDateTimeTmp < startTime )
                         {
-                            startDateTimeTmp = startDateTimeTmp.AddHours(24);
+                            startDateTimeTmp = startDateTimeTmp.AddHours(ONE_DAY_HOURS);
                         }
 
-                        return string.Equals(item.Holiday, GetHolidayFlag(context, startDateTimeTmp));
+
+                        var date = startDateTimeTmp.Date;
+                        var holidayFlag = ApiConstant.HOLIDAY_FALSE;
+
+                        if (date.DayOfWeek == DayOfWeek.Sunday || date.DayOfWeek == DayOfWeek.Saturday || context.HolidayMasters.Find(date) != null)
+                        {
+                            holidayFlag = ApiConstant.HOLIDAY_TRUE;
+                        }
+
+                        return string.Equals(item.Holiday, holidayFlag);
                     });
 
                     sw.Stop();
@@ -1909,15 +1926,26 @@ namespace GPnaviServer.WebSockets
                         sw.Restart();
                         //WSバージョン番号、WS作業開始時間、WS作業名、WS休日区分、作業開始日付時刻　で重複判別
                         wshs = wshs.GroupBy(item => new { item.Version, item.Start, item.Name, item.Holiday, item.StartDate })
-                            .SelectMany(grouping => grouping.Where(item => item.Status != WORK_STATUS_CANCEL).OrderByDescending(item => item.RegisterDate).Take(1));
+                            .SelectMany(grouping =>
+                            {
+                                if ( grouping.Where(item => item.Status == WORK_STATUS_CANCEL).Count() > 0)
+                                    return grouping.Take(0);
+
+                                return grouping.OrderByDescending(item => item.RegisterDate).Take(1);
+                            });
 
                         //レジFF種別、担当者ID、作業開始日付時刻　で重複判別
                         wshs = wshs.GroupBy(item => new { item.RfType, item.LoginId, item.StartDate })
-                            .SelectMany(grouping => grouping.Where(item => item.Status != WORK_STATUS_CANCEL).OrderByDescending(item => item.RegisterDate).Take(1));
+                            .SelectMany(grouping => grouping.OrderByDescending(item => item.RegisterDate).Take(1));
 
                         //センサーID、作業開始日付時刻　で重複判別
                         wshs = wshs.GroupBy(item => new { item.SensorId, item.StartDate })
-                            .SelectMany(grouping => grouping.Where(item => item.Status != WORK_STATUS_CANCEL).OrderByDescending(item => item.RegisterDate).Take(1));
+                            .SelectMany(grouping => {
+                                if (grouping.Where(item => item.Status == WORK_STATUS_CANCEL).Count() > 0)
+                                    return grouping.Take(0);
+
+                                return grouping.OrderByDescending(item => item.RegisterDate).Take(1);
+                            });
 
                         //休日判別。入力引数：「登録日付時刻」
                         //wshs = wshs.ToList().Where(item => string.Equals(item.Holiday, GetHolidayFlag(context, item.RegisterDate)));
@@ -2042,11 +2070,11 @@ namespace GPnaviServer.WebSockets
                         var display_date_tmp = DateTime.Today.Add(TimeSpan.Parse(item.display_date));
                         if (display_date_tmp > endTime)
                         {
-                            display_date_tmp = display_date_tmp.AddHours(-24);
+                            display_date_tmp = display_date_tmp.AddHours(-ONE_DAY_HOURS);
                         }
                         else if (display_date_tmp < startTime)
                         {
-                            display_date_tmp = display_date_tmp.AddHours(24);
+                            display_date_tmp = display_date_tmp.AddHours(ONE_DAY_HOURS);
                         }
                         wsList.Add(new WorkItem
                         {
@@ -2100,44 +2128,6 @@ namespace GPnaviServer.WebSockets
                 }
 
             }
-        }
-
-        /// <summary>
-        /// 休日判定
-        /// </summary>
-        /// <param name="context">DBコンテキスト</param>
-        /// <param name="datetime">「作業開始時間」或いは「登録日付時刻」</param>
-        /// <returns>休日区分</returns>
-        private string GetHolidayFlag(GPnaviServerContext context, DateTime datetime)
-        {
-            var date = default(DateTime);
-            try
-            {
-                if (datetime == null)
-                {
-                    _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, "GetHolidayFlag [datetime] null");
-                    return ApiConstant.HOLIDAY_FALSE;
-                }
-                date = datetime.Date;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(LoggingEvents.Exception, ex, "GetHolidayFlag [datetime] format error.");
-                return ApiConstant.HOLIDAY_FALSE;
-            }
-
-            if (context.HolidayMasters.Find(date) != null)
-            {
-                return ApiConstant.HOLIDAY_TRUE;
-            };
-
-            int dayOfWeek = Convert.ToInt32(date.DayOfWeek);
-            if (dayOfWeek == 0 || dayOfWeek == 6)
-            {
-                return ApiConstant.HOLIDAY_TRUE;
-            }
-
-            return ApiConstant.HOLIDAY_FALSE;
         }
 
         /// <summary>
