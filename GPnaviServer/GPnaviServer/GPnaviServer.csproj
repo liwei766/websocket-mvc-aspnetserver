@@ -1,7 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <TargetFramework>netcoreapp2.0</TargetFramework>
+    <UserSecretsId>5ac74241-a953-48fd-922d-14a3b80040f9</UserSecretsId>
   </PropertyGroup>
+  <ItemGroup>
+    <None Remove="wwwroot\fonts\PUDGoDpMt.ttf" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="AutoMapper" Version="7.0.1" />
     <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="5.0.1" />
@@ -20,5 +24,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="wwwroot\Notifications.html" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Update="wwwroot\fonts\PUDGoDpMt.ttf">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>

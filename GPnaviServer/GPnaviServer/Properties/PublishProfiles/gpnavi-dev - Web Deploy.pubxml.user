@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+このファイルは、Web プロジェクトの発行 / パッケージ処理で使用されます。この MSBuild ファイルを編集すると、
+この処理の動作をカスタマイズできます。詳細については、https://go.microsoft.com/fwlink/?LinkID=208121 を参照してください。 
+-->
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <TimeStampOfAssociatedLegacyPublishXmlFile />
+    <EncryptedPassword>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAjoeJcHnmr0OX+pwj1SrcKwAAAAACAAAAAAADZgAAwAAAABAAAAAYylixtVQPDK+0BFZcwaUpAAAAAASAAACgAAAAEAAAAHq+2JZXDdzIagJFRI7Vh7CAAAAAvtqr0qL/Xgx/8oLVpnwU6myKRnFXAWxi3CW1HDQg5P8Dq0ffRchZbsCphgiCtnZjXCthYIdnewPHLtSBbH/rYJ95uRNASr2obcbWjz4wu6Jy/4sgpiQopoPSnbCpfbqBZhuLNDBOvYAGgwX0WgV7OOwX7ETQYx085Z1NjLUY1lsUAAAAhXp29HMggoqsNXQ/Z4BvlxqJVOk=</EncryptedPassword>
+  </PropertyGroup>
+  <ItemGroup>
+    <DestinationConnectionStrings Include="DefaultConnection">
+      <Value>Data Source=tcp:gpnavi-dev.database.windows.net,1433%3bInitial Catalog=gpnavi_db-dev%3bUser ID=ServerAdmin%3bPassword=MinGpn20!8</Value>
+    </DestinationConnectionStrings>
+  </ItemGroup>
+</Project>

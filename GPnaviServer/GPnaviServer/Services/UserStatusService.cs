@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using GPnaviServer.Models;
 using GPnaviServer.Helpers;
 using GPnaviServer.Data;
@@ -36,6 +34,12 @@ namespace GPnaviServer.Services
             return _context.UserStatuses.Find(id);
         }
 
+        /// <summary>
+        /// ユーザステータスを新規作成
+        /// </summary>
+        /// <param name="loginId">ユーザID</param>
+        /// <param name="sessionKey">セッションキー</param>
+        /// <returns>新規作成したユーザステータス</returns>
         public UserStatus Create(string loginId, string sessionKey)
         {
             // validation
@@ -58,6 +62,12 @@ namespace GPnaviServer.Services
             return userStatus;
         }
 
+        /// <summary>
+        /// ユーザステータスを新規作成または更新
+        /// </summary>
+        /// <param name="loginId">ユーザID</param>
+        /// <param name="sessionKey">セッションキー</param>
+        /// <returns>改修したユーザステータス</returns>
         public UserStatus UpdateOrCreate(string loginId, string sessionKey)
         {
             // validation
@@ -84,6 +94,12 @@ namespace GPnaviServer.Services
             return userStatus;
         }
 
+        /// <summary>
+        /// セッションキーをクリアする
+        /// </summary>
+        /// <param name="loginId">ユーザID</param>
+        /// <param name="sessionKey">セッションキー</param>
+        /// <returns>改修したユーザステータス</returns>
         public UserStatus ClearSessionKey(string loginId, string sessionKey)
         {
             var userStatus = GetById(loginId);

@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Web;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using GPnaviServer.Models;
 using System.IO;
 using CsvHelper;
 using Microsoft.AspNetCore.Http;
-using System.Data;
 using GPnaviServer.Dtos;
 using GPnaviServer.Services;
 using AutoMapper;
@@ -40,17 +38,35 @@ namespace GPnaviServer.Controllers
             _mapper = mapper;
         }
 
-        [HttpGet("TimeAggregate")]
-        public IActionResult TimeAggregate(string loginId, string sessionKey)
+        /// <summary>
+        /// 入力チェック
+        /// </summary>
+        /// <param name="loginId">ログイン者ID</param>
+        /// <param name="sessionKey">ログイン者のセッションキー</param>
+        /// <returns>バリデーションエラーの場合は真</returns>
+        private (bool result, UserStatus status) IsInvalidSession(string loginId, string sessionKey)
         {
+            ViewBag.LoginName = "";
             if (!string.IsNullOrEmpty(loginId) && !string.IsNullOrEmpty(loginId))
             {
                 var status = _userStatusService.GetById(loginId);
                 if (status != null && string.Equals(sessionKey, status.SessionKey))
                 {
                     ViewBag.LoginName = _userService.GetById(loginId).LoginName;
-                    return View("TimeAggregate");
+                    return (true, status);
                 }
+            }   
+
+            return (false, null);
+        }
+
+        [HttpGet("TimeAggregate")]
+        public IActionResult TimeAggregate(string loginId, string sessionKey)
+        {
+            var (result, status) = IsInvalidSession(loginId,  sessionKey);
+            if (result)
+            {
+                return View("TimeAggregate");
             }
 
             return View("~/Views/Users/Login.cshtml");
@@ -59,14 +75,10 @@ namespace GPnaviServer.Controllers
         [HttpGet("DayAggregate")]
         public IActionResult DayAggregate(string loginId, string sessionKey)
         {
-            if (!string.IsNullOrEmpty(loginId) && !string.IsNullOrEmpty(loginId))
+            var (result, status) = IsInvalidSession(loginId, sessionKey);
+            if (result)
             {
-                var status = _userStatusService.GetById(loginId);
-                if (status != null && string.Equals(sessionKey, status.SessionKey))
-                {
-                    ViewBag.LoginName = _userService.GetById(loginId).LoginName;
-                    return View("DayAggregate");
-                }
+                return View("DayAggregate");
             }
 
             return View("~/Views/Users/Login.cshtml");
@@ -75,14 +87,10 @@ namespace GPnaviServer.Controllers
         [HttpGet("upload")]
         public IActionResult Upload(string loginId,string sessionKey)
         {
-            if (!string.IsNullOrEmpty(loginId) && !string.IsNullOrEmpty(loginId))
+            var (result, status) = IsInvalidSession(loginId, sessionKey);
+            if (result)
             {
-                var status = _userStatusService.GetById(loginId);
-                if (status != null && string.Equals(sessionKey, status.SessionKey))
-                {
-                    ViewBag.LoginName = _userService.GetById(loginId).LoginName;
-                    return View("upload", status);
-                }
+                return View("upload", status);
             }
 
             return View("~/Views/Users/Login.cshtml");
@@ -92,18 +100,11 @@ namespace GPnaviServer.Controllers
         [HttpPost("uploadws")]
         public async Task<IActionResult> UploadWS(IFormFile file,string LoginId,string SessionKey)
         {
-            UserStatus userStatus = null;
-            if (string.IsNullOrEmpty(LoginId) || string.IsNullOrEmpty(SessionKey))
+
+            var (result, userStatus) = IsInvalidSession(LoginId, SessionKey);
+            if (!result)
             {
                 return View("~/Views/Users/Login.cshtml");
-            }
-            else
-            {
-                userStatus = _userStatusService.GetById(LoginId);
-                if (userStatus == null || !string.Equals(SessionKey, userStatus.SessionKey))
-                {
-                    return View("~/Views/Users/Login.cshtml");                    
-                }
             }
 
             if (file.Length < 1)
@@ -111,35 +112,41 @@ namespace GPnaviServer.Controllers
                 return View("upload", userStatus);
             }
 
-            var config = new CsvHelper.Configuration.Configuration
-            {
-                HasHeaderRecord = false,
-                MissingFieldFound = null,
-                IgnoreBlankLines = true,
-            };
-
-            using (var streamReader = new StreamReader(file.OpenReadStream()))
-            using (var csv = new CsvReader(streamReader, config))
-            {
-                IEnumerable<WSCsvRow> wsCsvRow = csv.GetRecords<WSCsvRow>();
-
-                List<WorkScheduleMaster> wsmList;
-
-                if (csvValidationWsErr(wsCsvRow, out wsmList))
+            try { 
+                var config = new CsvHelper.Configuration.Configuration
                 {
-                    return View("upload", userStatus);
+                    HasHeaderRecord = false,
+                    MissingFieldFound = null,
+                    IgnoreBlankLines = true,
+                };
+
+                using (var streamReader = new StreamReader(file.OpenReadStream()))
+                using (var csv = new CsvReader(streamReader, config))
+                {
+                    IEnumerable<WSCsvRow> wsCsvRow = csv.GetRecords<WSCsvRow>();
+
+                    List<WorkScheduleMaster> wsmList;
+
+                    if (csvValidationWsErr(wsCsvRow, out wsmList))
+                    {
+                        return View("upload", userStatus);
+                    }
+
+                    //登録済みの最新のWSマスタバージョンを検索し、存在する場合は有効期限日付時刻を現在時刻で更新する。WSマスタバージョンを追加してバージョン番号を取得する。
+                    long latestVer = _wsvService.Add();
+
+                    //DB WSマスタ追加
+                    wsmList.ForEach(wsm => wsm.Version = latestVer);
+
+                    int countAdd = _wsmService.Add(wsmList);
+
+                    ViewBag.Message = String.Format(ApiConstant.INFO_UPLOAD_WS_01, countAdd);
+
                 }
-
-                //登録済みの最新のWSマスタバージョンを検索し、存在する場合は有効期限日付時刻を現在時刻で更新する。WSマスタバージョンを追加してバージョン番号を取得する。
-                long latestVer = _wsvService.Add();
-
-                //DB WSマスタ追加
-                wsmList.ForEach(wsm => wsm.Version = latestVer);
-
-                int countAdd = _wsmService.Add(wsmList);
-
-                ViewBag.Message = "WS登録OK:合計" + countAdd + "件追加済";
-
+            }
+            catch (Exception e)
+            {
+                ViewBag.Message = String.Format(ApiConstant.ERR90);
             }
 
 
@@ -156,16 +163,6 @@ namespace GPnaviServer.Controllers
 
             //時間としての分のフォーマット
             Regex checkMinute = new Regex(@"^[0-9]*[1-9][0-9]*$");
-
-            //スタート時刻の桁数の最小限
-            const int START_LENGTH_MIN = 4;
-
-            //作業名の桁数の最小限
-            const int WS_NAME_LENGTH_MAX = 40;
-
-            //短縮作業名の桁数の最小限
-            const int WS_SHORTNAME_LENGTH_MAX = 20;
-
 
             var prioritySet = new HashSet<string>(){ "H", "M", "L" };
             var iconIdSet = new HashSet<string>()
@@ -193,84 +190,84 @@ namespace GPnaviServer.Controllers
                 //入力値のチェック
                 if (string.IsNullOrWhiteSpace(ws.Start))
                 {
-                    ViewBag.Message = $"{line}行目の作業開始時間がありません";
+                    ViewBag.Message = String.Format(ApiConstant.ERR10, line, ApiConstant.START_JP);
                     return true;
                 }
                 if (!checktime.IsMatch(ws.Start))
                 {
-                    ViewBag.Message = $"{line}行目の作業開始時間は時間の形式ではありません";
+                    ViewBag.Message = String.Format(ApiConstant.ERR11, line, ApiConstant.START_JP);
                     return true;
                 }
-                if (ws.Start.Length== START_LENGTH_MIN)
+                if (ws.Start.Length== ApiConstant.START_LENGTH_MIN)
                 {
                     ws.Start = "0" + ws.Start;
                 }
 
                 if (string.IsNullOrWhiteSpace(ws.Name))
                 {
-                    ViewBag.Message = $"{line}行目の作業名がありません";
+                    ViewBag.Message = String.Format(ApiConstant.ERR10, line, ApiConstant.WS_NAME_JP);
                     return true;
                 }
-                if ( ws.Name.Length > WS_NAME_LENGTH_MAX)
+                if ( ws.Name.Length > ApiConstant.WS_NAME_LENGTH_MAX)
                 {
-                    ViewBag.Message = $"{line}行目の作業名の文字数が40をこえています";
+                    ViewBag.Message = String.Format(ApiConstant.ERR12, line, ApiConstant.WS_NAME_JP, ApiConstant.WS_NAME_LENGTH_MAX);
                     return true;
                 }
 
 
                 if (string.IsNullOrWhiteSpace(ws.ShortName) )
                 {
-                    ViewBag.Message = $"{line}行目の短縮作業名がありません";
+                    ViewBag.Message = String.Format(ApiConstant.ERR10, line, ApiConstant.WS_SHORTNAME_JP);
                     return true;
                 }
-                if (ws.ShortName.Length > WS_SHORTNAME_LENGTH_MAX)
+                if (ws.ShortName.Length > ApiConstant.WS_SHORTNAME_LENGTH_MAX)
                 {
-                    ViewBag.Message = $"{line}行目の短縮作業名の文字数が20をこえています";
+                    ViewBag.Message = String.Format(ApiConstant.ERR12, line, ApiConstant.WS_SHORTNAME_JP, ApiConstant.WS_SHORTNAME_LENGTH_MAX);
                     return true;
                 }
 
 
                 if (string.IsNullOrWhiteSpace(ws.Priority))
                 {
-                    ViewBag.Message = $"{line}行目の重要度がありません";
+                    ViewBag.Message = String.Format(ApiConstant.ERR10, line, ApiConstant.PRIORITY_JP);
                     return true;
                 }
                 if ( !prioritySet.Contains(ws.Priority))
                 {
-                    ViewBag.Message = $"{line}行目の重要度は不正な値が使用されています";
+                    ViewBag.Message = String.Format(ApiConstant.ERR13, line, ApiConstant.PRIORITY_JP);
                     return true;
                 }
 
                 if (string.IsNullOrWhiteSpace(ws.IconId))
                 {
-                    ViewBag.Message = $"{line}行目の作業アイコンIDがありません" ;
+                    ViewBag.Message = String.Format(ApiConstant.ERR10, line, ApiConstant.ICONID_JP);
                     return true;
                 }
                 if (!iconIdSet.Contains(ws.IconId))
                 {
-                    ViewBag.Message = $"{line}行目の作業アイコンIDは不正な値が使用されています";
+                    ViewBag.Message = String.Format(ApiConstant.ERR13, line, ApiConstant.ICONID_JP);
                     return true;
                 }
 
                 if (string.IsNullOrWhiteSpace(ws.Time))
                 {
-                    ViewBag.Message = $"{line}行目の標準作業時間（分）がありません";
+                    ViewBag.Message = String.Format(ApiConstant.ERR10, line, ApiConstant.WORK_TIME_JP);
                     return true;
                 }
                 if ( !checkMinute.IsMatch(ws.Time))
                 {
-                    ViewBag.Message = $"{line}行目の標準作業時間（分）は不正な値が使用されています" ;
+                    ViewBag.Message = String.Format(ApiConstant.ERR13, line, ApiConstant.WORK_TIME_JP);
                     return true;
                 }
 
                 if (string.IsNullOrWhiteSpace(ws.Holiday) )
                 {
-                    ViewBag.Message = $"{line}行目の作業休日区分がありません";
+                    ViewBag.Message = String.Format(ApiConstant.ERR10, line, ApiConstant.HOLIDAY_JP);
                     return true;
                 }
                 if ( !holidaySet.Contains(ws.Holiday))
                 {
-                    ViewBag.Message = $"{line}行目の休日区分は不正な値が使用されています";
+                    ViewBag.Message = String.Format(ApiConstant.ERR13, line, ApiConstant.HOLIDAY_JP);
                     return true;
                 }
 

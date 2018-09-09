@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Azure.NotificationHubs;
+using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 
 namespace GPnaviServer.WebSockets
@@ -12,18 +13,66 @@ namespace GPnaviServer.WebSockets
         /// <summary>
         /// hub name.
         /// </summary>
-        private const string HUB_NAME = "gpnavi";
+        private const string MS_NOTIFICATION_HUB_NAME = "gpnavi";
         /// <summary>
         /// connection string with full access.
         /// </summary>
-        private const string CONNECTION_STRING = "Endpoint=sb://gpnavi-notifications.servicebus.windows.net/;SharedAccessKeyName=DefaultFullSharedAccessSignature;SharedAccessKey=W9+zC7HrRNShjtUIcvORoAnmmV44BHBOx/aaLvAuzqI=";
+        private const string MS_NOTIFICATION_HUB_CONNECTION_STRING = "Endpoint=sb://gpnavi-notifications.servicebus.windows.net/;SharedAccessKeyName=DefaultFullSharedAccessSignature;SharedAccessKey=W9+zC7HrRNShjtUIcvORoAnmmV44BHBOx/aaLvAuzqI=";
+        /// <summary>
+        /// Azure Function App
+        /// </summary>
+        private const string FUNCTION_URL = "https://gpnavi-wns-raw.azurewebsites.net/api/HttpTriggerPush?code=mluG82TSSDOEzbUXoc0ayHZk2p/3JYsqEgeCjXbGrq4yAtGAKG07vQ==";
+
+        /// <summary>
+        /// hub name.
+        /// </summary>
+        public string MS_NotificationHubName { get; set; }
+        /// <summary>
+        /// connection string with full access.
+        /// </summary>
+        public string MS_NotificationHubConnectionString { get; set; }
+        /// <summary>
+        /// Azure Function App
+        /// </summary>
+        public string FunctionUrl { get; set; }
+        /// <summary>
+        /// 設定
+        /// </summary>
+        public IConfiguration Configuration { get; }
+
+        /// <summary>
+        /// コンストラクタ
+        /// </summary>
+        /// <param name="configuration"></param>
+        public PushToNotificationHub(IConfiguration configuration)
+        {
+            Configuration = configuration;
+
+            MS_NotificationHubName = Configuration["MS_NotificationHubName"] ?? MS_NOTIFICATION_HUB_NAME;
+            MS_NotificationHubConnectionString = Configuration.GetConnectionString("MS_NotificationHubConnectionString");
+            if (string.IsNullOrWhiteSpace(MS_NotificationHubConnectionString))
+            {
+                MS_NotificationHubConnectionString = MS_NOTIFICATION_HUB_CONNECTION_STRING;
+            }
+            FunctionUrl = Configuration["FunctionUrl"] ?? FUNCTION_URL;
+        }
+        /// <summary>
+        /// 設定情報取得
+        /// </summary>
+        /// <returns>設定情報の文字列</returns>
+        public string ToStringConfig()
+        {
+            return $"{nameof(MS_NotificationHubName)}:{MS_NotificationHubName} / " +
+                $"{nameof(MS_NotificationHubConnectionString)}:{MS_NotificationHubConnectionString} / " +
+                $"{nameof(FunctionUrl)}:{FunctionUrl}";
+        }
         /// <summary>
         /// Android用Push送信
         /// </summary>
         /// <param name="msg">装置間IFのjson文字列</param>
         /// <param name="deviceTokenList">デバイストークン</param>
         /// <returns></returns>
-        public static async Task SendNotificationGcmAsync(string msg, List<string> deviceTokenList)
+        public async Task SendNotificationGcmAsync(string msg, List<string> deviceTokenList)
         {
             try
             {
@@ -46,16 +95,12 @@ namespace GPnaviServer.WebSockets
             }
         }
         /// <summary>
-        /// Azure Function App
-        /// </summary>
-        private const string FUNCTION_URL = "https://gpnavi-wns-raw.azurewebsites.net/api/HttpTriggerPush?code=mluG82TSSDOEzbUXoc0ayHZk2p/3JYsqEgeCjXbGrq4yAtGAKG07vQ==";
-        /// <summary>
         /// Windows IoT Core用Push送信
         /// </summary>
         /// <param name="msg">装置間IFのjson文字列</param>
         /// <param name="deviceTokenList">デバイストークン</param>
         /// <returns></returns>
-        public static async Task SendNotificationWindowsAsync(string msg, List<string> deviceTokenList)
+        public async Task SendNotificationWindowsAsync(string msg, List<string> deviceTokenList)
         {
             try
             {
@@ -77,13 +122,13 @@ namespace GPnaviServer.WebSockets
                     "</binding></visual></toast>";
                 var notification = new WindowsNotification(xmlString);
 
-                await SendNotificationAsync(notification, deviceTokenList);
+                await SendNotificationAsync(notification, deviceTokenList, connectionString, hubName);
 #else
                 // Azure Function AppへのPush要求
                 using (var client = new HttpClient())
                 {
                     var content = new StringContent(msg);
-                    var httpResponseMessage = await client.PostAsync(FUNCTION_URL, content);
+                    var httpResponseMessage = await client.PostAsync(FunctionUrl, content);
                     System.Diagnostics.Debug.WriteLine($"WNS-RAW FunctionApp STATUS={httpResponseMessage.StatusCode}");
                 }
 #endif
@@ -99,12 +144,12 @@ namespace GPnaviServer.WebSockets
         /// <param name="notification">GCM/WINDOWS用に設定済みの通知</param>
         /// <param name="deviceTokenList">デバイストークン</param>
         /// <returns></returns>
-        private static async Task SendNotificationAsync(Notification notification, List<string> deviceTokenList)
+        private async Task SendNotificationAsync(Notification notification, List<string> deviceTokenList)
         {
             try
             {
                 // TODO Define the notification hub.
-                NotificationHubClient hub = NotificationHubClient.CreateClientFromConnectionString(CONNECTION_STRING, HUB_NAME);
+                NotificationHubClient hub = NotificationHubClient.CreateClientFromConnectionString(MS_NotificationHubConnectionString, MS_NotificationHubName);
 
                 //await hub.SendDirectNotificationAsync(notification, deviceTokenList);
 

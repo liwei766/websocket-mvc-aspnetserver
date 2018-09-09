@@ -257,6 +257,8 @@ namespace GPnaviServer.Migrations
 
                     b.HasIndex("StartDate");
 
+                    b.HasIndex("Status");
+
                     b.ToTable("WorkStatusHistories");
                 });
 #pragma warning restore 612, 618

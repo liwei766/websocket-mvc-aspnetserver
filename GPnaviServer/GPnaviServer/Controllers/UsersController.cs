@@ -3,9 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using GPnaviServer.Services;
 using GPnaviServer.Dtos;
 using AutoMapper;
-using GPnaviServer.Helpers;
-using Microsoft.AspNetCore.Authorization;
-
 using GPnaviServer.Models;
 using Microsoft.AspNetCore.Http;
 using GPnaviServer.WebSockets.APIs;
@@ -13,6 +10,7 @@ using System.Threading.Tasks;
 using System.IO;
 using CsvHelper;
 using System.Text.RegularExpressions;
+using System;
 
 namespace GPnaviServer.Controllers
 {
@@ -43,55 +41,111 @@ namespace GPnaviServer.Controllers
             return View();
         }
 
-
-
-        public IActionResult Home(UserDto userDto)
+        /// <summary>
+        /// 入力チェック
+        /// </summary>
+        /// <param name="loginId">ログイン者ID</param>
+        /// <param name="sessionKey">ログイン者のセッションキー</param>
+        /// <returns>バリデーションエラーの場合は真</returns>
+        private (bool result, UserStatus status) IsInvalidSession(string loginId, string sessionKey)
         {
-            if (userDto==null || string.IsNullOrEmpty(userDto.LoginId))
+            ViewBag.LoginName = "";
+            if (!string.IsNullOrEmpty(loginId) && !string.IsNullOrEmpty(loginId))
             {
-                return View("Login"); 
-            }
-
-            if(userDto!=null && !string.IsNullOrEmpty(userDto.LoginId) && !string.IsNullOrEmpty(userDto.SessionKey))
-            {
-                var status = _userStatusService.GetById(userDto.LoginId);
-                if (status!=null && string.Equals(userDto.SessionKey,status.SessionKey))
+                var status = _userStatusService.GetById(loginId);
+                if (status != null && string.Equals(sessionKey, status.SessionKey))
                 {
-                    ViewBag.LoginName = _userService.GetById(userDto.LoginId).LoginName;
-                    return View("Home", status);
+                    ViewBag.LoginName = _userService.GetById(loginId).LoginName;
+                    return (true, status);
                 }
             }
 
-            var userMaster = _mapper.Map<UserMaster>(userDto);
+            return (false, null);
+        }
 
-            //パースワードチェック
-            var user = _userService.Authenticate(userDto.LoginId, userDto.Password);
-
-            if (user == null)
+        private (bool result, UserStatus status) IsInvalidSession(UserDto userDto)
+        {
+            ViewBag.LoginName = "";
+            if (userDto != null && !string.IsNullOrEmpty(userDto.LoginId) && !string.IsNullOrEmpty(userDto.SessionKey))
             {
-                ViewBag.Message = "ログイン名またはパスワードが間違っています";
-                return View("Login", userMaster);
+                var status = _userStatusService.GetById(userDto.LoginId);
+                if (status != null && string.Equals(userDto.SessionKey, status.SessionKey))
+                {
+                    ViewBag.LoginName = _userService.GetById(userDto.LoginId).LoginName;
+                    return (true, status);
+                }
             }
 
-            //役割チェック　ROLE_ADMIN = "1"　ROLE_WORK = "0";
-            if (!string.Equals(user.Role, ApiConstant.ROLE_ADMIN))
+            return (false, null);
+        }
+
+        public IActionResult Home(UserDto userDto)
+        {
+            try
             {
-                ViewBag.Message = "管理者ではありません";
-                return View("Login", userMaster);
+                var (result, status) = IsInvalidSession(userDto);
+                if (result)
+                {
+                    return View("Home", status);
+                }
+            }
+            catch (Exception e)
+            {
+                ViewBag.Message = String.Format(ApiConstant.ERR90);
+                return View("Login");
             }
 
+            return LoginCheck(userDto);
+        }
 
-            // 担当者状態のセッションキーチェック
-            var userStatus = _userStatusService.GetById(user.LoginId);
-            if( string.Equals(userDto.SessionKey, "undefined") || userStatus==null || !string.Equals( userDto.SessionKey, userStatus.SessionKey))
+        public IActionResult LoginCheck(UserDto userDto)
+        {
+            if (userDto==null || string.IsNullOrEmpty(userDto.LoginId))
             {
-                string sessionKey = HttpContext.Session.Id;
-                HttpContext.Session.SetString("SessionKey", sessionKey);
-                userStatus = _userStatusService.UpdateOrCreate(user.LoginId, sessionKey);
+                userDto.Password = "";
+                return View("Login"); 
             }
-            ViewBag.LoginName = user.LoginName;
 
-            return View("Home", userStatus);
+            try
+            {
+                var userMaster = _mapper.Map<UserMaster>(userDto);
+
+                //パースワードチェック
+                var user = _userService.Authenticate(userDto.LoginId, userDto.Password);
+
+                if (user == null)
+                {
+                    ViewBag.Message = String.Format(ApiConstant.ERR01);
+                    userMaster.Password = "";
+                    return View("Login", userMaster);
+                }
+
+                //役割チェック　 ROLE_ADMIN または ROLE_WORK
+                if (!string.Equals(user.Role, ApiConstant.ROLE_ADMIN))
+                {
+                    ViewBag.Message = String.Format(ApiConstant.ERR08);
+                    userMaster.Password = "";
+                    return View("Login", userMaster);
+                }
+
+
+                // 担当者状態のセッションキーチェック
+                var userStatus = _userStatusService.GetById(user.LoginId);
+                if (string.Equals(userDto.SessionKey, "undefined") || userStatus == null || !string.Equals(userDto.SessionKey, userStatus.SessionKey))
+                {
+                    string sessionKey = HttpContext.Session.Id;
+                    HttpContext.Session.SetString("SessionKey", sessionKey);
+                    userStatus = _userStatusService.UpdateOrCreate(user.LoginId, sessionKey);
+                }
+                ViewBag.LoginName = user.LoginName;
+
+                return View("Home", userStatus);
+            }
+            catch (Exception e)
+            {
+                ViewBag.Message = String.Format(ApiConstant.ERR90);
+                return View("Login");
+            }
         }
 
 
@@ -102,26 +156,25 @@ namespace GPnaviServer.Controllers
                 return View("Login");
             }
 
-            _userStatusService.ClearSessionKey(userDto.LoginId, userDto.SessionKey);
-            
+            try
+            {
+                _userStatusService.ClearSessionKey(userDto.LoginId, userDto.SessionKey);
+            }
+            catch (Exception e)
+            {
+                ViewBag.Message = String.Format(ApiConstant.ERR90);
+            }
+
             return View("Login");
         }
 
         [HttpPost("uploaduserdata")]
         public async Task<IActionResult> uploadUserData(IFormFile file, string LoginId, string SessionKey)
         {
-            UserStatus userStatus = null;
-            if (string.IsNullOrEmpty(LoginId) || string.IsNullOrEmpty(SessionKey))
+            var (result, userStatus) = IsInvalidSession(LoginId, SessionKey);
+            if (!result)
             {
                 return View("~/Views/Users/Login.cshtml");
-            }
-            else
-            {
-                userStatus = _userStatusService.GetById(LoginId);
-                if (userStatus == null || !string.Equals(SessionKey, userStatus.SessionKey))
-                {
-                    return View("~/Views/Users/Login.cshtml");
-                }
             }
 
             if (file.Length<1)
@@ -129,31 +182,38 @@ namespace GPnaviServer.Controllers
                 return View("~/Views/WS/Upload.cshtml", userStatus);
             }
 
-            var config = new CsvHelper.Configuration.Configuration
+            try
             {
-                HasHeaderRecord = false,
-                MissingFieldFound = null,
-                IgnoreBlankLines = true,
-            };
-
-            using (var streamReader = new StreamReader(file.OpenReadStream()))
-            using (var csv = new CsvReader(streamReader, config))
-            {
-                IEnumerable<UserCsvRow> userCsvRow = csv.GetRecords<UserCsvRow>();
-
-                List<UserMaster> userList;
-
-                if (csvValidationUserErr(userCsvRow, out userList))
+                var config = new CsvHelper.Configuration.Configuration
                 {
-                    return View("~/Views/WS/Upload.cshtml", userStatus);
+                    HasHeaderRecord = false,
+                    MissingFieldFound = null,
+                    IgnoreBlankLines = true,
+                };
+                using (var streamReader = new StreamReader(file.OpenReadStream()))
+                using (var csv = new CsvReader(streamReader, config))
+                {
+                    IEnumerable<UserCsvRow> userCsvRow = csv.GetRecords<UserCsvRow>();
+
+                    List<UserMaster> userList;
+
+                    if (csvValidationUserErr(userCsvRow, out userList))
+                    {
+                        return View("~/Views/WS/Upload.cshtml", userStatus);
+                    }
+
+                    _userVersionService.Add();
+
+                    int countAdd = _userService.Upload(userList);
+
+                    ViewBag.Message = String.Format(ApiConstant.INFO_UPLOAD_USER_01, countAdd);
+
                 }
 
-                _userVersionService.Add();
-
-                int countAdd = _userService.Upload(userList);
-
-                ViewBag.Message = "ユーザ登録OK:合計" + countAdd + "件追加済";
-
+            }
+            catch (Exception e)
+            {
+                ViewBag.Message = String.Format(ApiConstant.ERR90);
             }
 
 
@@ -161,47 +221,11 @@ namespace GPnaviServer.Controllers
         }
 
 
-        //public IActionResult Register([FromBody]UserDto userDto)
-        //{
-        //    // map dto to entity
-        //    var user = _mapper.Map<UserMaster>(userDto);
-
-        //    try
-        //    {
-        //        // save 
-        //        _userService.Create(user, userDto.Password);
-        //        return Ok();
-        //    }
-        //    catch (AppException ex)
-        //    {
-        //        // return error message if there was an exception
-        //        return BadRequest(ex.Message);
-        //    }
-        //}
-
-        //[HttpGet("allusers")]
-        //public IActionResult GetAll()
-        //{
-        //    var users = _userService.GetAll();
-        //    var userDtos = _mapper.Map<IList<UserDto>>(users);
-        //    return Ok(userDtos);
-        //}
-
         private bool csvValidationUserErr(IEnumerable<UserCsvRow> userCsvRow, out List<UserMaster> userList)
         {
             userList = new List<UserMaster>();
 
             var loginIdHs = new HashSet<string>();
-
-            //ユーザーIDの最大文字数
-            const int LOGINID_LENGTH_MAX = 3;
-
-            //ユーザー名の最大文字数
-            const int LOGINNAME_LENGTH_MAX = 16;
-
-            //パースワード文字数
-            const int PASSWORD_LENGTH_MAX = 4;
-
 
             int line = 0;
             foreach (var user in userCsvRow)
@@ -209,55 +233,54 @@ namespace GPnaviServer.Controllers
                 ++line;
 
                 //入力値のチェック
-                //{N}行目の{項目名}がありません
                 if (string.IsNullOrWhiteSpace(user.LoginId) )
                 {
-                    ViewBag.Message = $"{line}行目の担当者IDがありません";
+                    ViewBag.Message = String.Format(ApiConstant.ERR10, line, ApiConstant.LOGINID_JP);
                     return true;
                 }
-                if (user.LoginId.Length > LOGINID_LENGTH_MAX)
+                if (user.LoginId.Length > ApiConstant.LOGINID_LENGTH_MAX)
                 {
-                    ViewBag.Message = $"{line}行目の担当者IDの文字数が3をこえています";
+                    ViewBag.Message = String.Format(ApiConstant.ERR12, line, ApiConstant.LOGINID_JP, ApiConstant.LOGINID_LENGTH_MAX);
                     return true;
                 }
                 if ( !Regex.IsMatch(user.LoginId, "^[0-9a-zA-Z]+$" ))
                 {
-                    ViewBag.Message = $"{line}行目の担当者IDは半角英数字を使用してください";
+                    ViewBag.Message = String.Format(ApiConstant.ERR14, line, ApiConstant.LOGINID_JP);
                     return true;
                 }
 
                 if (string.IsNullOrWhiteSpace(user.LoginName)  )
                 {
-                    ViewBag.Message = $"{line}行目の担当者名がありません";
+                    ViewBag.Message = String.Format(ApiConstant.ERR10, line, ApiConstant.LOGINNAME_JP);
                     return true;
                 }
-                if ( user.LoginName.Length > LOGINNAME_LENGTH_MAX)
+                if ( user.LoginName.Length > ApiConstant.LOGINNAME_LENGTH_MAX)
                 {
-                    ViewBag.Message = $"{line}行目の担当者名の文字数が16をこえています";
+                    ViewBag.Message = String.Format(ApiConstant.ERR12, line, ApiConstant.LOGINNAME_JP, ApiConstant.LOGINNAME_LENGTH_MAX);
                     return true;
                 }
 
 
                 if (string.IsNullOrWhiteSpace(user.Password))
                 {
-                    ViewBag.Message = $"{line}行目のパスワードがありません";
+                    ViewBag.Message = String.Format(ApiConstant.ERR10, line, ApiConstant.PASSWORD_JP);
                     return true;
                 }
-                if ( user.Password.Length > PASSWORD_LENGTH_MAX)
+                if ( user.Password.Length > ApiConstant.PASSWORD_LENGTH_MAX)
                 {
-                    ViewBag.Message = $"{line}行目のパスワードの文字数が4をこえています";
+                    ViewBag.Message = String.Format(ApiConstant.ERR12, line, ApiConstant.PASSWORD_JP, ApiConstant.PASSWORD_LENGTH_MAX);
                     return true;
                 }
-                if ( !Regex.IsMatch(user.LoginId, "^[0-9a-zA-Z]+$"))
+                if ( !Regex.IsMatch(user.Password, "^[0-9a-zA-Z]+$"))
                 {
-                    ViewBag.Message = $"{line}行目のパスワードは半角英数字を使用してください";
+                    ViewBag.Message = String.Format(ApiConstant.ERR14, line, ApiConstant.PASSWORD_JP);
                     return true;
                 }
 
                 //担当者ID重複チェック
                 if (!loginIdHs.Add(user.LoginId))
                 {
-                    ViewBag.Message = $"{line}行目の担当者IDが重複しています";
+                    ViewBag.Message = String.Format(ApiConstant.ERR15, line, ApiConstant.LOGINID_JP);
                     return true;
                 }
 

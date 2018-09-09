@@ -20,15 +20,15 @@
         <h4>ワークスケジュール</h4><br />
         <form method="post" enctype="multipart/form-data" asp-controller="WS" asp-action="uploadws" id="wsForm">
             <div class="input-group">
-                <input type="text" class="form-control" placeholder="ファイルをお選びください" required readonly="" id="wsFile">
+                <input type="text" class="form-control" placeholder="ファイルをお選びください" required readonly="" tabindex="10" id="wsFile" style="background: #ffffff">
                 <label class="input-group-btn">
-                    <span class="btn btn-gray" style="margin-left: 20px;">
+                    <span class="btn btn-gray" style="margin-left: 20px;" tabIndex="11">
                         ファイル選択<input type="file" style="display:none" accept="text/csv,.csv,.CSV" name="file" />
                     </span>
                 </label>
             </div>
             <div>
-                <button class="btn float-right btn-gpnavi" id="uploadws" type="button">
+                <button class="btn float-right btn-gpnavi" id="uploadws" type="button" tabindex="12">
                     アップロード
                 </button>
             </div>
@@ -38,15 +38,15 @@
         <h4>店員情報</h4><br />
         <form method="post" enctype="multipart/form-data" asp-controller="Users" asp-action="uploaduserdata" id="staffForm">
             <div class="input-group">
-                <input type="text" class="form-control" placeholder="ファイルをお選びください" required readonly="" id="staffFile">
+                <input type="text" class="form-control" placeholder="ファイルをお選びください" required readonly="" tabindex="13" id="staffFile" style="background: #ffffff">
                 <label class="input-group-btn">
-                    <span class="btn btn-gray" style="margin-left: 20px;">
+                    <span class="btn btn-gray" style="margin-left: 20px;" tabIndex="14">
                         ファイル選択<input type="file" style="display:none" accept="text/csv,.csv,.CSV" name="file" />
                     </span>
                 </label>
             </div>
             <div>
-                <button class="btn float-right btn-gpnavi" id="uploadstaff" type="button">
+                <button class="btn float-right btn-gpnavi" id="uploadstaff" type="button" tabindex="15">
                     アップロード
                 </button>
             </div>
@@ -70,7 +70,8 @@
         if ($('#wsFile').val().length > 0) {
             $('#wsForm').submit();
         } else {
-            $('#dis').text("ワークスケジュールCSVファイルを選択してください");
+            //ワークスケジュールCSVファイルを選択してください
+            $('#dis').text('@Html.Raw(GPnaviServer.WebSockets.APIs.ApiConstant.ERR90)');
         }
     });
 
@@ -78,8 +79,17 @@
         if ($('#staffFile').val().length > 0) {
             $('#staffForm').submit();
         } else {
-            $('#dis').text("店員情報CSVファイルを選択してください");
+            //店員情報CSVファイルを選択してください
+            $('#dis').text('@Html.Raw(GPnaviServer.WebSockets.APIs.ApiConstant.ERR90)');
         }
     });
 
+    let ENTER_KEY = 13;
+    $('.form-control').on('keypress', function (e) {
+        if (e.keyCode === ENTER_KEY && $(this).val().length < 1) {
+            e.preventDefault();
+            $(this).parent().next().children().trigger('click');
+        }
+    });
+    
 </script>

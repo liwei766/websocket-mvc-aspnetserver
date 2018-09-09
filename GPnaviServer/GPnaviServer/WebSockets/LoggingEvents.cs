@@ -49,6 +49,10 @@ namespace GPnaviServer.WebSockets
         /// マスターが存在しない
         /// </summary>
         public const int Master = 1104;
+        /// <summary>
+        /// デフォルト設定の確認
+        /// </summary>
+        public const int Default = 1105;
 
         #endregion エラー
     }

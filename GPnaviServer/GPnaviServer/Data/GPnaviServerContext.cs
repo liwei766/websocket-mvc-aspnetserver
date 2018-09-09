@@ -73,6 +73,7 @@ namespace GPnaviServer.Data
             modelBuilder.Entity<WorkStatusHistory>().HasKey(e => new { e.Version, e.Start, e.Name, e.Holiday, e.SensorId, e.RegisterDate });
             // 作業状況履歴にインデックスを設定する
             modelBuilder.Entity<WorkStatusHistory>().HasIndex(e => e.StartDate);
+            modelBuilder.Entity<WorkStatusHistory>().HasIndex(e => e.Status);
         }
     }
 }

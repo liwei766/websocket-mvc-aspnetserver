@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
-namespace GPnaviServer.WebSockets.APIs
+﻿namespace GPnaviServer.WebSockets.APIs
 {
     /// <summary>
     /// APIで使用する固定値
@@ -192,6 +187,83 @@ namespace GPnaviServer.WebSockets.APIs
         /// </summary>
         public const string HELP_ON = "1";
         #endregion 各項目の選択肢
+
+        #region ユーザマスタ
+        /// <summary>
+        /// 担当者ID
+        /// </summary>
+        public const string LOGINID_JP = "担当者ID";
+        /// <summary>
+        /// ユーザーIDの最大文字数
+        /// </summary>
+        public const int LOGINID_LENGTH_MAX = 3;
+        /// <summary>
+        /// 担当者名
+        /// </summary>
+        public const string LOGINNAME_JP = "担当者名";
+        /// <summary>
+        /// ユーザー名の最大文字数
+        /// </summary>
+        public const int LOGINNAME_LENGTH_MAX = 16;
+        /// <summary>
+        /// パスワード
+        /// </summary>
+        public const string PASSWORD_JP = "パスワード";
+        /// <summary>
+        /// パースワード文字数
+        /// </summary>
+        public const int PASSWORD_LENGTH_MAX = 4;
+        #endregion ユーザマスタ
+
+        #region ワークスケジュールマスタ
+        /// <summary>
+        /// 作業開始時間
+        /// </summary>
+        public const string START_JP = "作業開始時間";
+        /// <summary>
+        /// スタート時刻の桁数の最小限
+        /// </summary>
+        public const  int START_LENGTH_MIN = 4;
+        /// <summary>
+        /// 作業名
+        /// </summary>
+        public const string WS_NAME_JP = "作業名";
+        /// <summary>
+        /// 作業名の桁数
+        /// </summary>
+        public const int WS_NAME_LENGTH_MAX = 40;
+        /// <summary>
+        /// 短縮作業名
+        /// </summary>
+        public const string WS_SHORTNAME_JP = "短縮作業名";
+        /// <summary>
+        /// 短縮作業名の桁数
+        /// </summary>
+        public const int WS_SHORTNAME_LENGTH_MAX = 20;
+        /// <summary>
+        /// 重要度
+        /// </summary>
+        public const string PRIORITY_JP = "重要度";
+        /// <summary>
+        /// 作業アイコンID
+        /// </summary>
+        public const string ICONID_JP = "作業アイコンID";
+        /// <summary>
+        /// 標準作業時間（分）
+        /// </summary>
+        public const string WORK_TIME_JP = "標準作業時間（分）";
+        /// <summary>
+        /// 休日区分
+        /// </summary>
+        public const string HOLIDAY_JP = "休日区分";  
+        #endregion ワークスケジュールマスタ
+
+
+        #region 処理インフォメーション
+        public const string INFO_UPLOAD_WS_01 = "WS登録OK:合計{0}件追加済";
+        public const string INFO_UPLOAD_USER_01 = "ユーザ登録OK:合計{0}件追加済";
+        #endregion 処理インフォメーション
+
 
         #region エラーメッセージ
         public const string ERR01 = "ログイン名またはパスワードが間違っています。";

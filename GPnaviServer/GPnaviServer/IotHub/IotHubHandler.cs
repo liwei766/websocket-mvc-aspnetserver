@@ -1,5 +1,6 @@
 ﻿using GPnaviServer.WebSockets;
 using Microsoft.Azure.EventHubs;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -24,22 +25,41 @@ namespace GPnaviServer.IotHub
         /// </summary>
         protected readonly ILogger _logger;
         /// <summary>
-        /// コンストラクタ
+        /// 設定
         /// </summary>
-        /// <param name="iotHubConnectionManager"></param>
-        public IotHubHandler(IotHubConnectionManager iotHubConnectionManager)
-        {
-            _iotHubConnectionManager = iotHubConnectionManager;
-        }
+        public IConfiguration Configuration { get; }
+
+        public string EventHubsCompatibleEndpoint { get; }
+        public string EventHubsCompatiblePath { get; }
+        public string IotHubSasKey { get; }
+        public string IotHubSasKeyName { get; }
+
         /// <summary>
         /// コンストラクタ
         /// </summary>
         /// <param name="iotHubConnectionManager">IoT HUB 接続マネージャ</param>
         /// <param name="logger">ロガー</param>
-        public IotHubHandler(IotHubConnectionManager iotHubConnectionManager, ILogger logger)
+        public IotHubHandler(IotHubConnectionManager iotHubConnectionManager, ILogger logger, IConfiguration configuration)
         {
             _iotHubConnectionManager = iotHubConnectionManager;
             _logger = logger;
+            Configuration = configuration;
+
+            EventHubsCompatibleEndpoint = Configuration["EventHubsCompatibleEndpoint"] ?? s_eventHubsCompatibleEndpoint;
+            EventHubsCompatiblePath = Configuration["EventHubsCompatiblePath"] ?? s_eventHubsCompatiblePath;
+            IotHubSasKey = Configuration["IotHubSasKey"] ?? s_iotHubSasKey;
+            IotHubSasKeyName = Configuration["IotHubSasKeyName"] ?? s_iotHubSasKeyName;
+        }
+        /// <summary>
+        /// 設定情報取得
+        /// </summary>
+        /// <returns>設定情報の文字列</returns>
+        public string ToStringConfig()
+        {
+            return $"{nameof(EventHubsCompatibleEndpoint)}:{EventHubsCompatibleEndpoint} / " +
+                $"{nameof(EventHubsCompatiblePath)}:{EventHubsCompatiblePath} / " +
+                $"{nameof(IotHubSasKey)}:{IotHubSasKey}" +
+                $"{nameof(IotHubSasKeyName)}:{IotHubSasKeyName}";
         }
         /// <summary>
         /// 接続中であれば真

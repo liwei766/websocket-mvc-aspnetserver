@@ -11,16 +11,21 @@
     <script type="text/javascript" src="~/js/jquery-3.3.1.min.js"></script>
     <script type="text/javascript" src="~/js/popper.min.js"></script>
     <script type="text/javascript" src="~/js/bootstrap.min.js"></script>
-    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css" integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
-    @*<link rel="stylesheet" href="~/css/fontawesome.css"  crossorigin="anonymous"/>*@
 
     @Html.Raw(JavaScriptSnippet.FullScript)
 </head>
 <body>
     <style>
-        body {            
+        body {
             background-color: #f8f9fa;
             padding-top: 0px;
+        }
+        @@font-face {
+            font-family: "PUD新ゴシック表示";
+            src: url("/fonts/PUDGoDpMt.ttf") format("truetype");
+        }
+        * {
+            font-family: PUD新ゴシック表示,'Meiryo UI',sans-serif;
         }
     </style>
     <script>
@@ -38,13 +43,13 @@
 
             <li class="nav-item" id="topPageLink">
                 <form action="/Users/Home" name="form1" method="post">
-                    <i class="fa fa-caret-left" aria-hidden="true"></i>
-                    <a href="javascript:form1.submit()" style="text-decoration: underline;color: black;">TOPに戻る</a>
+                    <img src="../images/back.png" alt="arrow">
+                    <a href="javascript:form1.submit()" style="text-decoration: underline;color: black;" tabIndex="1">TOPに戻る</a>
                 </form>
             </li>
 
             <li class="nav-item dropdown ml-auto">
-                <a class="dropdown-toggle" data-toggle="dropdown" href="#" style="text-decoration: underline;color: black;" id="naviUserName"></a>
+                <a class="dropdown-toggle" data-toggle="dropdown" href="#" style="text-decoration: underline;color: black;" id="naviUserName" tabIndex="99"></a>
                 <div class="dropdown-menu">
                     <a class="dropdown-item" data-toggle="modal" data-target="#logoutModal">ログアウト</a>
                 </div>
@@ -105,7 +110,7 @@
     });
 
     $(function () {
-        $("#naviUserName").text(Cookies.get('LoginName'));
+        $("#naviUserName").text(Cookies.get('LoginName')+'さん');
     });
 
     $('#logoutBtn').click(function (e) {

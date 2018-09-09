@@ -6,7 +6,6 @@ using GPnaviServer.Helpers;
 using System.Security.Cryptography;
 using System.Text;
 using GPnaviServer.Data;
-using Microsoft.EntityFrameworkCore;
 using GPnaviServer.WebSockets.APIs;
 
 namespace GPnaviServer.Services
@@ -14,7 +13,6 @@ namespace GPnaviServer.Services
     public interface IUserService
     {
         UserMaster Authenticate(string loginId, string password);
-        IEnumerable<UserMaster> GetAll();
         UserMaster GetById(string id);
         UserMaster Create(UserMaster user, string password);
         int Upload(List<UserMaster> userList);
@@ -45,22 +43,29 @@ namespace GPnaviServer.Services
             return userList.Count();
         }
 
+        /// <summary>
+        /// 担当者情報をアップロードして、一括登録
+        /// </summary>
+        /// <param name="userList">一括登録のユーザリスト</param>
+        /// <returns>登録したユーザ数</returns>
         public int Upload(List<UserMaster> userList)
         {
             var changedUserlist = new List<UserMaster>();
             userList.ForEach(user =>
             {
+                //DBに新規作成又は更新前に、部分コラムにデフォルト値を設定
                 user.Role = ApiConstant.ROLE_WORK;
                 user.IsValid = true;
                 user.Password = CreatePasswordHash(user.Password);
                 user.RemoveDate = DateTime.MaxValue;
 
                 UserMaster dbUser = GetById(user.LoginId);
-                if (null == dbUser)
+                if (null == dbUser)//存在しなければ新規作成
                 {
                     _context.UserMasters.Add(user);
+                    dbUser = user;
                 }
-                else
+                else//既存のデータを更新
                 {
                     dbUser.LoginName = user.LoginName;
                     dbUser.Role = user.Role;
@@ -71,25 +76,33 @@ namespace GPnaviServer.Services
                 changedUserlist.Add(dbUser);
 
             });
-            _context.SaveChanges();
 
+            //全て有効的な普通のユーザを取得
             var allUsers = _context.UserMasters.Where(userdb => userdb.IsValid && userdb.Role== ApiConstant.ROLE_WORK && userdb.RemoveDate == DateTime.MaxValue ).ToArray();
 
+            //今回一括登録されたユーザリストに含まれていないユーザを取得
             var expiredUserList = allUsers.Except(changedUserlist);
 
+            //論理削除
             var now = DateTime.Now;
             foreach (var expiredUser in expiredUserList) {
                 expiredUser.IsValid = false;
                 expiredUser.RemoveDate = now;
             };
 
+            //コミット
             _context.SaveChanges();
 
 
             return userList.Count();
         }
 
-
+        /// <summary>
+        /// ユーザ認証
+        /// </summary>
+        /// <param name="loginId">ユーザID</param>
+        /// <param name="password">ユーザパースワード</param>
+        /// <returns>認証済のユーザ</returns>
         public UserMaster Authenticate(string loginId, string password)
         {
             if (string.IsNullOrEmpty(loginId) || string.IsNullOrEmpty(password))
@@ -109,16 +122,23 @@ namespace GPnaviServer.Services
             return user;
         }
 
-        public IEnumerable<UserMaster> GetAll()
-        {
-            return _context.UserMasters;
-        }
 
+        /// <summary>
+        /// ユーザIDで該当ユーザを取得
+        /// </summary>
+        /// <param name="loginId">ユーザID</param>
+        /// <returns>取得されたユーザ</returns>
         public UserMaster GetById(string id)
         {
             return _context.UserMasters.Find(id);
         }
 
+        /// <summary>
+        /// ユーザを新規作成
+        /// </summary>
+        /// <param name="user">ユーザ情報</param>
+        /// <param name="password">ユーザパースワード</param>
+        /// <returns>新規作成したユーザ</returns>
         public UserMaster Create(UserMaster user, string password)
         {
             // validation
@@ -136,8 +156,11 @@ namespace GPnaviServer.Services
             return user;
         }
 
-        // private helper methods
-
+        /// <summary>
+        /// パースワード暗号化
+        /// </summary>
+        /// <param name="password">普通のパースワード</param>
+        /// <returns>暗号化したパースワード</returns>
         public string CreatePasswordHash(string password)
         {
             if (password == null) throw new ArgumentNullException("password");
@@ -156,6 +179,11 @@ namespace GPnaviServer.Services
             return rst.ToString();
         }
 
+        /// <summary>
+        /// stringからbyte arrayに変換
+        /// </summary>
+        /// <param name="strKey">入力のストリング</param>
+        /// <returns>変換済のbyte array</returns>
         private byte[] GetKeyByteArray(string strKey)
         {
             UTF8Encoding Asc = new UTF8Encoding();
@@ -165,6 +193,12 @@ namespace GPnaviServer.Services
             return tmpByte;
         }
 
+        /// <summary>
+        /// パースワードバリデーションチェック
+        /// </summary>
+        /// <param name="password">入力のパースワード</param>
+        /// <param name="storedPasswordHash">DBに保存している暗号化のパースワード</param>
+        /// <returns>バリデーションチェック結果</returns>
         private bool VerifyPasswordHash(string password, string storedPasswordHash)
         {
             if (password == null) throw new ArgumentNullException("password");

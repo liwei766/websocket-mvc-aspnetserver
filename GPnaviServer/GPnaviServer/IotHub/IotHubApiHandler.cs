@@ -24,6 +24,10 @@ namespace GPnaviServer.IotHub
         /// センサー区分POTのメッセージ
         /// </summary>
         private const string MESSAGE_POT = "{0}に給水してください。";
+        /// <summary>
+        /// 頻発判定 分単位
+        /// </summary>
+        private const double SENSOR_TIMESPAN_MINUTES = 1;
 
         /// <summary>
         /// DateTimeを文字列化するときのフォーマットプロバイダ
@@ -33,20 +37,60 @@ namespace GPnaviServer.IotHub
         /// 装置間IFの日付時刻フォーマット
         /// </summary>
         public string DateTimeFormat => @"yyyy/MM/dd HH:mm:ss.fff";
+        /// <summary>
+        /// センサー区分TRASHのメッセージ
+        /// </summary>
+        public string MessageTrash { get; }
+        /// <summary>
+        /// センサー区分POTのメッセージ
+        /// </summary>
+        public string MessagePot { get; }
+        /// <summary>
+        /// 頻発判定 分単位
+        /// </summary>
+        public double SensorTimeSpanMinutes { get; }
 
         /// <summary>
         /// 設定
         /// </summary>
         public IConfiguration Configuration { get; }
         /// <summary>
+        /// Notification HUB
+        /// </summary>
+        public PushToNotificationHub _pushToNotificationHub { get; }
+
+        /// <summary>
         /// コンストラクタ
         /// </summary>
         /// <param name="iotHubConnectionManager">マネージャ</param>
         /// <param name="logger">ロガー</param>
         /// <param name="configuration">設定</param>
-        public IotHubApiHandler(IotHubConnectionManager iotHubConnectionManager, ILogger<IotHubApiHandler> logger, IConfiguration configuration) : base(iotHubConnectionManager, logger)
+        public IotHubApiHandler(IotHubConnectionManager iotHubConnectionManager, ILogger<IotHubApiHandler> logger, IConfiguration configuration) : base(iotHubConnectionManager, logger, configuration)
         {
             Configuration = configuration;
+            var sensorTimeSpanMinutes = Configuration["SensorTimeSpanMinutes"];
+            try
+            {
+                SensorTimeSpanMinutes = double.Parse(sensorTimeSpanMinutes);
+            }
+            catch (Exception)
+            {
+                SensorTimeSpanMinutes = SENSOR_TIMESPAN_MINUTES;
+            }
+            MessageTrash = Configuration["MessageTrash"];
+            if (string.IsNullOrWhiteSpace(MessageTrash))
+            {
+                MessageTrash = MESSAGE_TRASH;
+            }
+            MessagePot = Configuration["MessagePot"];
+            if (string.IsNullOrWhiteSpace(MessagePot))
+            {
+                MessagePot = MESSAGE_POT;
+            }
+
+            _logger.LogWarning(LoggingEvents.Default, ToStringConfig());
+
+            _pushToNotificationHub = new PushToNotificationHub(Configuration);
         }
 
         protected override async Task OnReceiveAsync(string json)
@@ -125,7 +169,7 @@ namespace GPnaviServer.IotHub
                     }
                     if (string.IsNullOrWhiteSpace(sensorMaster.DisplayName))
                     {
-                        _logger.LogError(LoggingEvents.Validation, $"センサーマスタの表示名 {sensorMaster.SensorType} が不正");
+                        _logger.LogError(LoggingEvents.Validation, $"センサーマスタの表示名 {sensorMaster.DisplayName} が不正");
                         return;
                     }
 
@@ -135,7 +179,7 @@ namespace GPnaviServer.IotHub
                     {
                         _logger.LogTrace(LoggingEvents.IotHubReceive, "前回の発生時刻と比較");
                         var timeSpan = DateTime.Now - sensorStatus.OccurrenceDate;
-                        if (timeSpan.TotalMinutes < 1)
+                        if (timeSpan.TotalMinutes < SensorTimeSpanMinutes)
                         {
                             _logger.LogTrace(LoggingEvents.IotHubReceive, "頻発しているのでイベントを捨てる");
                             return;
@@ -163,7 +207,7 @@ namespace GPnaviServer.IotHub
                     await context.SaveChangesAsync();
 
                     _logger.LogTrace(LoggingEvents.IotHubReceive, "センサー検知を送信する");
-                    var displayMessage = sensorMaster.SensorType.Equals(ApiConstant.SENSOR_TYPE_TRASH) ? string.Format(MESSAGE_TRASH, sensorStatus.DisplayName) : string.Format(MESSAGE_POT, sensorStatus.DisplayName);
+                    var displayMessage = sensorMaster.SensorType.Equals(ApiConstant.SENSOR_TYPE_TRASH) ? string.Format(MessageTrash, sensorStatus.DisplayName) : string.Format(MessagePot, sensorStatus.DisplayName);
                     var apiSensorPush = new ApiSensorPush
                     {
                         message_name = ApiConstant.MESSAGE_SENSOR_PUSH,
@@ -177,7 +221,7 @@ namespace GPnaviServer.IotHub
                     var androidTokens = context.UserStatuses.Where(e => e.DeviceType.Equals(ApiConstant.DEVICE_TYPE_ANDROID)).Select(e => e.DeviceToken).ToList();
                     if (androidTokens.Count > 0)
                     {
-                        await PushToNotificationHub.SendNotificationGcmAsync(apiSensorPushJson, androidTokens);
+                        await _pushToNotificationHub.SendNotificationGcmAsync(apiSensorPushJson, androidTokens);
                     }
                     else
                     {
@@ -187,7 +231,7 @@ namespace GPnaviServer.IotHub
                     var iotTokens = context.UserStatuses.Where(e => e.DeviceType.Equals(ApiConstant.DEVICE_TYPE_IOT)).Select(e => e.DeviceToken).ToList();
                     if (iotTokens.Count > 0)
                     {
-                        await PushToNotificationHub.SendNotificationWindowsAsync(apiSensorPushJson, iotTokens);
+                        await _pushToNotificationHub.SendNotificationWindowsAsync(apiSensorPushJson, iotTokens);
                     }
                     else
                     {

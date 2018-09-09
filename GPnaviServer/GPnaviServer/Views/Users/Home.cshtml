@@ -11,9 +11,11 @@
         $('#topPageLink').hide();
         $('#naviUserName').text('@ViewBag.LoginName');
 
-        Cookies.set('SessionKey', '@Model.SessionKey');
-        Cookies.set('LoginId', '@Model.LoginId');
-        Cookies.set('LoginName', '@ViewBag.LoginName');
+        Cookies.set('SessionKey', '@Html.Raw(Model.SessionKey)');
+        Cookies.set('LoginId', '@Html.Raw(Model.LoginId)');
+        Cookies.set('LoginName', '@Html.Raw(ViewBag.LoginName)');
+        $('input[name="LoginId"]').val('@Model.LoginId');
+        $('input[name="SessionKey"]').val('@Model.SessionKey');
 
 
         let eventChain = 0;
@@ -75,17 +77,17 @@
             <img id="press" class="alpha-btn" src="~/images/press_btn.png" alt="btn_press" hidden />
 
 
-            <a href="/WS/TimeAggregate?loginId=@Model.LoginId&sessionKey=@Model.SessionKey" >
+            <a href="/WS/TimeAggregate?loginId=@Model.LoginId&sessionKey=@Model.SessionKey" tabIndex="2">
                 <img class="home-btn" src="~/images/time_btn.png" alt="時間帯別集計time_btn" />
             </a>
 
                 
-            <a href="/WS/DayAggregate?loginId=@Model.LoginId&sessionKey=@Model.SessionKey" >
+            <a href="/WS/DayAggregate?loginId=@Model.LoginId&sessionKey=@Model.SessionKey" tabIndex="3">
                 <img class="home-btn"  src="~/images/day_btn.png" alt="日別集計day_btn" />
             </a>
 
 
-            <a href="/WS/upload?loginId=@Model.LoginId&sessionKey=@Model.SessionKey">
+            <a href="/WS/upload?loginId=@Model.LoginId&sessionKey=@Model.SessionKey" tabIndex="4">
                 <img class="home-btn" src="~/images/up_btn.png" alt="日別集計up_btn" />
             </a>
 

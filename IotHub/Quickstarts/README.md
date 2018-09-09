@@ -29,4 +29,13 @@ SimulatedDevice.cs
 
 ## 9001で1秒ループするバイナリ
 
-simulated-device.win-x86.zip
+- simulated-device.publish.zip
+  - センサーID 9001
+- simulated-device.9003.publish.zip
+  - センサーID 9003
+- simulated-device.9005.publish.zip
+  - センサーID 9005
+  - センサーマスタにIDが存在／区分が存在しない
+- simulated-device.9006.publish.zip
+  - センサーID 9006
+  - センサーマスタにIDが存在しない

@@ -13,6 +13,7 @@ using GPnaviServer.WebSockets;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -75,8 +76,8 @@ namespace GPnaviServer
             //êVãKí«â¡:Microsoft.AspNetCore.WebSockets 
             var webSocketOptions = new WebSocketOptions()
             {
-                KeepAliveInterval = TimeSpan.FromSeconds(120),
-                ReceiveBufferSize = 4 * 1024
+                KeepAliveInterval = TimeSpan.FromSeconds(WebSocketManagerMiddleware.KEEP_ALIVE_INTERVAL),
+                ReceiveBufferSize = WebSocketManagerMiddleware.BUFFER_SIZE
             };
             app.UseWebSockets(webSocketOptions);
 
@@ -93,10 +94,16 @@ namespace GPnaviServer
 
             });
 
-
+            // Set up custom content types - associating file extension to MIME type
+            var provider = new FileExtensionContentTypeProvider();
+            // Replace an existing mapping
+            provider.Mappings[".ttf"] = "application/x-font-ttf";
 
             app.UseDefaultFiles();
-            app.UseStaticFiles();
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                ContentTypeProvider = provider
+            });
 
         }
 

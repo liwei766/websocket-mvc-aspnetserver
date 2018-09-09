@@ -60,6 +60,10 @@ namespace GPnaviServer.WebSockets
         /// 設定
         /// </summary>
         public IConfiguration Configuration { get; }
+        /// <summary>
+        /// Notification HUB
+        /// </summary>
+        public PushToNotificationHub _pushToNotificationHub { get; }
 
         /// <summary>
         /// コンストラクタ
@@ -70,6 +74,8 @@ namespace GPnaviServer.WebSockets
         public WebSocketApiHandler(WebSocketConnectionManager webSocketConnectionManager, ILogger<WebSocketApiHandler> logger, IConfiguration configuration) : base(webSocketConnectionManager, logger)
         {
             Configuration = configuration;
+            _pushToNotificationHub = new PushToNotificationHub(Configuration);
+            _logger.LogWarning(LoggingEvents.Default, _pushToNotificationHub.ToStringConfig());
         }
 
         public override async Task ReceiveAsync(WebSocket socket, WebSocketReceiveResult result, byte[] buffer)
@@ -905,6 +911,11 @@ namespace GPnaviServer.WebSockets
                 return (true, "apiLogout is null.");
             }
 
+            if (string.IsNullOrWhiteSpace(apiLogout.device_type))
+            {
+                return (true, "device_type is null.");
+            }
+
             if (string.IsNullOrWhiteSpace(apiLogout.login_id))
             {
                 return (true, "login_id is null.");
@@ -1102,12 +1113,20 @@ namespace GPnaviServer.WebSockets
                         }
 
                         _logger.LogTrace(LoggingEvents.RegisterControllerAsync, "WS作業状態を更新");
-                        workScheduleStatus.Status = item.work_status;
                         if (item.work_status.Equals(ApiConstant.WORK_STATUS_START))
                         {
-                            _logger.LogTrace(LoggingEvents.RegisterControllerAsync, "作業開始日付時刻を更新");
-                            workScheduleStatus.StartDate = registerDate;
+                            _logger.LogTrace(LoggingEvents.RegisterControllerAsync, "自分の作業で一時停止中かチェックする");
+                            if (workScheduleStatus.Status.Equals(ApiConstant.WORK_STATUS_PAUSE))
+                            {
+                                _logger.LogTrace(LoggingEvents.RegisterControllerAsync, "自分の作業で一時停止中は開始時刻を設定しない");
+                            }
+                            else
+                            {
+                                _logger.LogTrace(LoggingEvents.RegisterControllerAsync, "作業開始日付時刻を更新");
+                                workScheduleStatus.StartDate = registerDate;
+                            }
                         }
+                        workScheduleStatus.Status = item.work_status;
                         workScheduleStatus.StatusUpdateDate = registerDate;
                         workScheduleStatus.LoginId = item.login_id;
                     }
@@ -1228,6 +1247,14 @@ namespace GPnaviServer.WebSockets
 
                     _logger.LogTrace(LoggingEvents.RegisterControllerAsync, "作業状況履歴を追加");
                     var displayName = item.rf_type.Equals(ApiConstant.RF_TYPE_REG) ? DISPLAY_NAME_REG : DISPLAY_NAME_FF;
+
+                    var startDateTmp = registerDate;
+                    if (string.Equals(item.work_status, ApiConstant.WORK_STATUS_FINISH)){
+                        startDateTmp = context.WorkStatusHistories.
+                            Where(e => e.Version == 0 && e.Start == "" && e.Name == "" && e.Holiday == "" && e.SensorId == "" && e.RfType == item.rf_type && e.LoginId == item.login_id)
+                            .OrderByDescending(e => e.RegisterDate).First().StartDate;
+                    }
+
                     var workStatusHistory = new WorkStatusHistory
                     {
                         Version = 0,
@@ -1241,7 +1268,7 @@ namespace GPnaviServer.WebSockets
                         LoginId = item.login_id,
                         LoginName = userMaster?.LoginName,
                         Status = item.work_status,
-                        StartDate = registerDate,
+                        StartDate = startDateTmp,
                         RegisterDate = registerDate
                     };
                     if (!IsExistPrimaryKeyInWorkStatusHistory(context, workStatusHistory))
@@ -1752,13 +1779,13 @@ namespace GPnaviServer.WebSockets
                 var androidTokens = context?.UserStatuses.Where(e => ApiConstant.DEVICE_TYPE_ANDROID.Equals(e.DeviceType) && !string.IsNullOrWhiteSpace(e.DeviceToken))?.Select(e => e.DeviceToken)?.ToList();
                 if (androidTokens != null && androidTokens.Count > 0)
                 {
-                    await PushToNotificationHub.SendNotificationGcmAsync(message, androidTokens);
+                    await _pushToNotificationHub.SendNotificationGcmAsync(message, androidTokens);
                 }
 
                 var iotTokens = context?.UserStatuses.Where(e => ApiConstant.DEVICE_TYPE_IOT.Equals(e.DeviceType) && !string.IsNullOrWhiteSpace(e.DeviceToken))?.Select(e => e.DeviceToken)?.ToList();
                 if (iotTokens != null && iotTokens.Count > 0)
                 {
-                    await PushToNotificationHub.SendNotificationWindowsAsync(message, iotTokens);
+                    await _pushToNotificationHub.SendNotificationWindowsAsync(message, iotTokens);
                 }
             }
             catch (Exception)
@@ -1780,13 +1807,13 @@ namespace GPnaviServer.WebSockets
                 var androidTokens = context?.UserStatuses.Where(e => ApiConstant.DEVICE_TYPE_ANDROID.Equals(e.DeviceType) && !string.IsNullOrWhiteSpace(e.DeviceToken) && !e.LoginId.Equals(loginId))?.Select(e => e.DeviceToken)?.ToList();
                 if (androidTokens != null && androidTokens.Count > 0)
                 {
-                    await PushToNotificationHub.SendNotificationGcmAsync(message, androidTokens);
+                    await _pushToNotificationHub.SendNotificationGcmAsync(message, androidTokens);
                 }
 
                 var iotTokens = context?.UserStatuses.Where(e => ApiConstant.DEVICE_TYPE_IOT.Equals(e.DeviceType) && !string.IsNullOrWhiteSpace(e.DeviceToken) && !e.LoginId.Equals(loginId))?.Select(e => e.DeviceToken)?.ToList();
                 if (iotTokens != null && iotTokens.Count > 0)
                 {
-                    await PushToNotificationHub.SendNotificationWindowsAsync(message, iotTokens);
+                    await _pushToNotificationHub.SendNotificationWindowsAsync(message, iotTokens);
                 }
             }
             catch (Exception)
@@ -1806,8 +1833,25 @@ namespace GPnaviServer.WebSockets
 
                 try
                 {
+                    _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, "パース");
+                    var apiListRequest = JsonConvert.DeserializeObject<ApiListRequest>(json);
+
+                    _logger.LogTrace(LoggingEvents.RegisterControllerAsync, "バリデーションチェック");
+                    var (result, message) = IsInvalidApiListRequest(apiListRequest);
+                    if (result)
+                    {
+                        _logger.LogError(LoggingEvents.Validation, $"バリデーションエラー {message}");
+                        await SendListResultNGAsync(socket, nameof(ApiConstant.ERR90), ApiConstant.ERR90);
+                        return;
+                    }
+
+
+
                     Stopwatch sw = new Stopwatch();
                     var resource = JObject.Parse(json);
+
+                    // TryParseのout用
+                    var timeSpan = default(TimeSpan);
 
                     //担当者Id
                     var loginId = resource.Properties().First(prop => "login_id" == prop.Name).Value.ToString();
@@ -1866,7 +1910,7 @@ namespace GPnaviServer.WebSockets
 
                         //休日判別で不具合なデータをフィルターする（正しいデータのみを選択）
                         var dayMiddle = DateTime.Today.AddHours(WS_TIME_RANGE);
-                        var startDateTimeTmp = DateTime.Today.Add(TimeSpan.Parse(item.Start));
+                        var startDateTimeTmp = DateTime.Today.Add(TimeSpan.TryParse(item.Start, out timeSpan) ? timeSpan : default(TimeSpan));
 
                         if (now <= dayMiddle && startDateTimeTmp > endTime)
                         {
@@ -1902,10 +1946,11 @@ namespace GPnaviServer.WebSockets
                     //②作業状況履歴テーブルから、作業履歴の生成																													
                     //作業状況履歴テーブルから、現在日時から - 12時間の作業履歴を取得する。																													
                     _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"作業状況履歴の検索");
-                    // TODO 例外しないための応急処置
-                    var timeSpan = default(TimeSpan);
                     sw.Restart();
-                    var wshs = context.WorkStatusHistories.AsNoTracking().ToList().Where(e => DateTime.Today.Add((TimeSpan.TryParse(e.Start, out timeSpan)) ? timeSpan : default(TimeSpan)) >= startTime);
+
+                    //#183 S004 作業一覧作成 WS作業時間が13時間前で作業開始が11時間前のデータがレスポンスに含まれていない
+                    var wshs = context.WorkStatusHistories.AsNoTracking().ToList().Where(e => e.StartDate >= startTime);
+
                     sw.Stop();
                     _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"作業状況履歴の検索経過時間の合計 = {sw.Elapsed}");
 
@@ -2067,35 +2112,101 @@ namespace GPnaviServer.WebSockets
                     {
                         _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"レスポンスを作り中...");
 
-                        var display_date_tmp = DateTime.Today.Add(TimeSpan.Parse(item.display_date));
-                        if (display_date_tmp > endTime)
+                        var display_date_tmp = item.start_date;
+
+                        if (!string.Equals(item.work_status, ApiConstant.WORK_STATUS_FINISH) && display_date_tmp == default(DateTime) && TimeSpan.TryParse(item.display_date, out timeSpan))
                         {
-                            display_date_tmp = display_date_tmp.AddHours(-ONE_DAY_HOURS);
+                            display_date_tmp = DateTime.Today.Add(timeSpan);
+                            if (display_date_tmp > endTime)
+                            {
+                                display_date_tmp = display_date_tmp.AddHours(-ONE_DAY_HOURS);
+                            }
+                            else if (display_date_tmp < startTime)
+                            {
+                                display_date_tmp = display_date_tmp.AddHours(ONE_DAY_HOURS);
+                            }
                         }
-                        else if (display_date_tmp < startTime)
+
+                        // WS作業の未実施のアイテムの除外判定を行う
+                        bool isValidItem = false;
+                        if (string.IsNullOrWhiteSpace(item.work_status) && item.ws_version != 0)
                         {
-                            display_date_tmp = display_date_tmp.AddHours(ONE_DAY_HOURS);
+                            // バージョン有効期限の範囲に入っているのかチェック
+                            var workScheduleVersion = context.WorkScheduleVersions.FirstOrDefault(e => e.Id == item.ws_version);
+                            if (workScheduleVersion != null)
+                            {
+                                if (workScheduleVersion.RegisterDate < display_date_tmp && display_date_tmp < workScheduleVersion.ExpirationDate)
+                                {
+                                    // 有効
+                                    isValidItem = true;
+                                }
+                                else
+                                {
+                                    _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"無効アイテムを検出 {display_date_tmp} v={item.ws_version}");
+                                }
+                            }
+                            else
+                            {
+                                _logger.LogError(LoggingEvents.ListRequestControllerAsync, $"バージョン{item.ws_version}が存在しないので破たん");
+                            }
                         }
-                        wsList.Add(new WorkItem
+                        else
                         {
-                            display_date = display_date_tmp.ToString(DateTimeFormat, CultureInfoApi),
-                            ws_version = item.ws_version.ToString(),
-                            ws_start = item.ws_start,
-                            ws_name = item.ws_name,
-                            ws_holiday = item.ws_holiday,
-                            ws_priority = item.ws_priority,
-                            sensor_id = item.sensor_id,
-                            rf_type = item.rf_type,
-                            ws_icon_id = item.ws_icon_id,
-                            display_short_name = item.display_short_name,
-                            login_id = item.login_id,
-                            login_name = item.login_name,
-                            work_status = item.work_status,
-                            sensor_date = item.sensor_date == default(DateTime) ? "" : item.sensor_date.ToString(DateTimeFormat, CultureInfoApi),
-                            start_date = item.start_date == default(DateTime) ? "" : item.start_date.ToString(DateTimeFormat, CultureInfoApi),
-                            register_date = item.register_date == default(DateTime) ? "" : item.register_date.ToString(DateTimeFormat, CultureInfoApi)
-                        });
+                            // その他のアイテム
+                            isValidItem = true;
+                        }
+
+                        if (isValidItem)
+                        {
+                            wsList.Add(new WorkItem
+                            {
+                                display_date = display_date_tmp.ToString(DateTimeFormat, CultureInfoApi),
+                                ws_version = item.ws_version.ToString(),
+                                ws_start = item.ws_start,
+                                ws_name = item.ws_name,
+                                ws_holiday = item.ws_holiday,
+                                ws_priority = item.ws_priority,
+                                sensor_id = item.sensor_id,
+                                rf_type = item.rf_type,
+                                ws_icon_id = item.ws_icon_id,
+                                display_short_name = item.display_short_name,
+                                login_id = item.login_id,
+                                login_name = item.login_name,
+                                work_status = item.work_status,
+                                sensor_date = item.sensor_date == default(DateTime) ? "" : item.sensor_date.ToString(DateTimeFormat, CultureInfoApi),
+                                start_date = item.start_date == default(DateTime) ? "" : item.start_date.ToString(DateTimeFormat, CultureInfoApi),
+                                register_date = item.register_date == default(DateTime) ? "" : item.register_date.ToString(DateTimeFormat, CultureInfoApi)
+                            });
+                        }
                     });
+
+
+
+                    //最後、センサーステータスに未実施のデータを抽出して追加
+                    //センサーで未実施のデータの抽出条件: SELECT* FROM SensorStatuses sss WHERE(sss.OccurrenceDate > sss.StartDate) OR(sss.OccurrenceDate <= sss.StartDate AND sss.Status = N'キャンセル')
+                    var sss_undone = from ss_undone in sss.Where(e => (e.OccurrenceDate > e.StartDate) || (e.OccurrenceDate <= e.StartDate && string.Equals(e.Status, ApiConstant.WORK_STATUS_CANCEL)))
+                                     select new WorkItem
+                                     {
+                                         display_date = ss_undone.OccurrenceDate.ToString(DateTimeFormat, CultureInfoApi),
+                                         ws_version = "",
+                                         ws_start = "",
+                                         ws_name = "",
+                                         ws_holiday = "",
+                                         ws_priority = "",
+                                         sensor_id = ss_undone.SensorId,
+                                         sensor_type = ss_undone.SensorType,
+                                         rf_type = "",
+                                         ws_icon_id = "",
+                                         display_short_name = ss_undone.DisplayName,
+                                         login_id = "",
+                                         login_name = "",
+                                         work_status = "",
+                                         sensor_date = ss_undone.OccurrenceDate.ToString(DateTimeFormat, CultureInfoApi),
+                                         start_date = "",
+                                         register_date = ""
+                                     };
+                    wsList.AddRange(sss_undone.ToList());
+
 
                     wsList = wsList.OrderByDescending(item => item.display_date).ToList();
                     sw.Stop();
@@ -2125,9 +2236,36 @@ namespace GPnaviServer.WebSockets
                 catch (Exception ex)
                 {
                     _logger.LogError(LoggingEvents.Exception, ex, "ListRequestController unknown error.");
+                    await SendListResultNGAsync(socket, nameof(ApiConstant.ERR90), ApiConstant.ERR90);
                 }
 
             }
+        }
+
+        /// <summary>
+        /// 受信メッセージバリデーション ログイン
+        /// </summary>
+        /// <param name="apiLogin">受信メッセージ</param>
+        /// <returns>バリデーションエラーの場合は真</returns>
+        private (bool result, string message) IsInvalidApiListRequest(ApiListRequest apiListRequest)
+        {
+            if (apiListRequest == null)
+            {
+                return (true, "apiLogin is null.");
+            }
+
+            var (result, message) = IsInvalidApiCommonUpWithoutSessionKey(apiListRequest);
+            if (result)
+            {
+                return (result, message);
+            }
+
+            if (string.IsNullOrWhiteSpace(apiListRequest.device_type))
+            {
+                return (true, "device_type is null.");
+            }
+
+            return (false, null);
         }
 
         /// <summary>

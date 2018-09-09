@@ -13,6 +13,14 @@ namespace GPnaviServer.WebSockets
     public class WebSocketManagerMiddleware
     {
         /// <summary>
+        /// 受信バッファサイズ
+        /// </summary>
+        public const int BUFFER_SIZE = 1024 * 4;
+        /// <summary>
+        /// キープアライブインターバル 秒単位
+        /// </summary>
+        public const int KEEP_ALIVE_INTERVAL = 120;
+        /// <summary>
         /// ロガー
         /// </summary>
         private readonly ILogger _logger;
@@ -83,7 +91,7 @@ namespace GPnaviServer.WebSockets
         {
             try
             {
-                var buffer = new byte[1024 * 4];
+                var buffer = new byte[BUFFER_SIZE];
 
                 while (socket.State == WebSocketState.Open)
                 {

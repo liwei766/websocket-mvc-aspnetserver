@@ -9,3 +9,4 @@ C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\obj\D
 C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\obj\Debug\netcoreapp2.0\GPnaviServer.dll
 C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\obj\Debug\netcoreapp2.0\GPnaviServer.pdb
 C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\obj\Debug\netcoreapp2.0\GPnaviServer.csprojAssemblyReference.cache
+C:\miniStore\trunk\10_Output\30_Source\20_Server\GPnaviServer\GPnaviServer\obj\Debug\netcoreapp2.0\UserSecretsAssemblyInfo.cs
