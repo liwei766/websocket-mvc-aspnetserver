@@ -132,12 +132,6 @@ namespace GPnaviServer.Controllers
                         return View("upload", userStatus);
                     }
 
-                    //登録済みの最新のWSマスタバージョンを検索し、存在する場合は有効期限日付時刻を現在時刻で更新する。WSマスタバージョンを追加してバージョン番号を取得する。
-                    long latestVer = _wsvService.Add();
-
-                    //DB WSマスタ追加
-                    wsmList.ForEach(wsm => wsm.Version = latestVer);
-
                     int countAdd = _wsmService.Add(wsmList);
 
                     ViewBag.Message = String.Format(ApiConstant.INFO_UPLOAD_WS_01, countAdd);
@@ -182,6 +176,9 @@ namespace GPnaviServer.Controllers
             };
             var holidaySet = new HashSet<string>() {ApiConstant.HOLIDAY_FALSE, ApiConstant.HOLIDAY_TRUE};
 
+            //重複判別用wsSetを用意
+            var wsSet = new HashSet<WSCsvRow>();
+
             int line = 0;
             foreach (var ws in wsCsvRow)
             {
@@ -202,6 +199,15 @@ namespace GPnaviServer.Controllers
                 {
                     ws.Start = "0" + ws.Start;
                 }
+
+
+                //重複チェック
+                if (!wsSet.Add(ws))
+                {
+                    ViewBag.Message = String.Format(ApiConstant.ERR15, line, ApiConstant.WS_KEY_JP);
+                    return true;
+                }
+
 
                 if (string.IsNullOrWhiteSpace(ws.Name))
                 {

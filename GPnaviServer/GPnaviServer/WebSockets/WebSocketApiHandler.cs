@@ -911,19 +911,10 @@ namespace GPnaviServer.WebSockets
                 return (true, "apiLogout is null.");
             }
 
-            if (string.IsNullOrWhiteSpace(apiLogout.device_type))
+            var (result, message) = IsInvalidApiCommonUp(apiLogout);
+            if (result)
             {
-                return (true, "device_type is null.");
-            }
-
-            if (string.IsNullOrWhiteSpace(apiLogout.login_id))
-            {
-                return (true, "login_id is null.");
-            }
-
-            if (string.IsNullOrWhiteSpace(apiLogout.session_key))
-            {
-                return (true, "session_key is null.");
+                return (result, message);
             }
 
             return (false, null);
@@ -1904,9 +1895,10 @@ namespace GPnaviServer.WebSockets
                     //WSマスタから、上記で生成したWS作業開始日時が、各WSマスタバージョンの有効期限内の作業を取得する。
                     //WSマスタ取得。もしが存在しない[ERR07]
                     _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"WSマスタの検索");
-                    sw.Restart();  
-                    var wsms = context.WorkScheduleMasters.AsNoTracking().ToList().Where(e => verArr.Contains(e.Version) );
-                    wsms = wsms.Where(item => {
+                    sw.Restart();
+                    var wsms = context.WorkScheduleMasters.AsNoTracking().ToList().Where(e => verArr.Contains(e.Version));
+                    wsms = wsms.Where(item =>
+                    {
 
                         //休日判別で不具合なデータをフィルターする（正しいデータのみを選択）
                         var dayMiddle = DateTime.Today.AddHours(WS_TIME_RANGE);
@@ -1916,7 +1908,7 @@ namespace GPnaviServer.WebSockets
                         {
                             startDateTimeTmp = startDateTimeTmp.AddHours(-ONE_DAY_HOURS);
                         }
-                        else if(now > dayMiddle && startDateTimeTmp < startTime )
+                        else if (now > dayMiddle && startDateTimeTmp < startTime)
                         {
                             startDateTimeTmp = startDateTimeTmp.AddHours(ONE_DAY_HOURS);
                         }
@@ -1973,7 +1965,7 @@ namespace GPnaviServer.WebSockets
                         wshs = wshs.GroupBy(item => new { item.Version, item.Start, item.Name, item.Holiday, item.StartDate })
                             .SelectMany(grouping =>
                             {
-                                if ( grouping.Where(item => item.Status == WORK_STATUS_CANCEL).Count() > 0)
+                                if (grouping.Where(item => item.Status == WORK_STATUS_CANCEL).Count() > 0)
                                     return grouping.Take(0);
 
                                 return grouping.OrderByDescending(item => item.RegisterDate).Take(1);
@@ -1985,15 +1977,13 @@ namespace GPnaviServer.WebSockets
 
                         //センサーID、作業開始日付時刻　で重複判別
                         wshs = wshs.GroupBy(item => new { item.SensorId, item.StartDate })
-                            .SelectMany(grouping => {
+                            .SelectMany(grouping =>
+                            {
                                 if (grouping.Where(item => item.Status == WORK_STATUS_CANCEL).Count() > 0)
                                     return grouping.Take(0);
 
                                 return grouping.OrderByDescending(item => item.RegisterDate).Take(1);
                             });
-
-                        //休日判別。入力引数：「登録日付時刻」
-                        //wshs = wshs.ToList().Where(item => string.Equals(item.Holiday, GetHolidayFlag(context, item.RegisterDate)));
 
                         sw.Stop();
                         _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"wshs検索条件の設定経過時間の合計 = {sw.Elapsed}");
@@ -2183,8 +2173,26 @@ namespace GPnaviServer.WebSockets
 
 
                     //最後、センサーステータスに未実施のデータを抽出して追加
-                    //センサーで未実施のデータの抽出条件: SELECT* FROM SensorStatuses sss WHERE(sss.OccurrenceDate > sss.StartDate) OR(sss.OccurrenceDate <= sss.StartDate AND sss.Status = N'キャンセル')
-                    var sss_undone = from ss_undone in sss.Where(e => (e.OccurrenceDate > e.StartDate) || (e.OccurrenceDate <= e.StartDate && string.Equals(e.Status, ApiConstant.WORK_STATUS_CANCEL)))
+                    var sss_undone = from ss_undone in sss.Where(e =>
+                                            {
+                                                if (e.OccurrenceDate > e.StartDate || (e.OccurrenceDate <= e.StartDate && string.Equals(e.Status, ApiConstant.WORK_STATUS_CANCEL)))
+                                                {
+                                                    string[] statusArr = { ApiConstant.WORK_STATUS_START, ApiConstant.WORK_STATUS_PAUSE , ApiConstant.WORK_STATUS_FINISH };
+
+                                                    if ( statusArr.Contains(e.Status)  )
+                                                    {
+                                                        if(e.StartDate > startTime)
+                                                            return true;
+                                                    }
+                                                    else
+                                                    {
+                                                        if (e.OccurrenceDate > startTime)
+                                                            return true;
+                                                    }
+                                                };
+
+                                                return false;
+                                            })
                                      select new WorkItem
                                      {
                                          display_date = ss_undone.OccurrenceDate.ToString(DateTimeFormat, CultureInfoApi),

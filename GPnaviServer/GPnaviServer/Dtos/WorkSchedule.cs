@@ -29,5 +29,23 @@ namespace GPnaviServer.Dtos
 
         //7	休日区分 平日と休日を識別する区分（0:平日、1：休日）
         public String Holiday { get; set; }
+
+        public override bool Equals(object obj)
+        {
+            var row = obj as WSCsvRow;
+            return row != null &&
+                   Start == row.Start &&
+                   Name == row.Name &&
+                   Holiday == row.Holiday;
+        }
+
+        public override int GetHashCode()
+        {
+            var hashCode = -738659680;
+            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(Start);
+            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(Name);
+            hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(Holiday);
+            return hashCode;
+        }
     }
 }

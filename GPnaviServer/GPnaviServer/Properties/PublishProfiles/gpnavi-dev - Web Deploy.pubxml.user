@@ -6,11 +6,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <TimeStampOfAssociatedLegacyPublishXmlFile />
-    <EncryptedPassword>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAAjoeJcHnmr0OX+pwj1SrcKwAAAAACAAAAAAADZgAAwAAAABAAAAAYylixtVQPDK+0BFZcwaUpAAAAAASAAACgAAAAEAAAAHq+2JZXDdzIagJFRI7Vh7CAAAAAvtqr0qL/Xgx/8oLVpnwU6myKRnFXAWxi3CW1HDQg5P8Dq0ffRchZbsCphgiCtnZjXCthYIdnewPHLtSBbH/rYJ95uRNASr2obcbWjz4wu6Jy/4sgpiQopoPSnbCpfbqBZhuLNDBOvYAGgwX0WgV7OOwX7ETQYx085Z1NjLUY1lsUAAAAhXp29HMggoqsNXQ/Z4BvlxqJVOk=</EncryptedPassword>
+    <EncryptedPassword>AQAAANCMnd8BFdERjHoAwE/Cl+sBAAAACIEGCf0VXEKZZPcuYUkaJwAAAAACAAAAAAADZgAAwAAAABAAAABPu6KsuYQrEHMPAeO4FyXGAAAAAASAAACgAAAAEAAAALk2IdfPExniY7OYjE3GnPiAAAAAWcMoueojT4YcLpKeyfqm3LO0hoBMvX+gsLVg5KTCU4aA1gb85c9e12x+CncHo3BmEHd0dwv2vouCr3j7jzBvc6X2qFZfNZoDgt4eH5eJGvr5HcB+UIneJ6iz79TEKEdcwVk6o6t7j1rMIqVUKMfbuv2dxeD/PhlJ7vvjgTL28soUAAAAEaJisCPLHDzzRiYGrPqDq5Nc2TY=</EncryptedPassword>
   </PropertyGroup>
-  <ItemGroup>
-    <DestinationConnectionStrings Include="DefaultConnection">
-      <Value>Data Source=tcp:gpnavi-dev.database.windows.net,1433%3bInitial Catalog=gpnavi_db-dev%3bUser ID=ServerAdmin%3bPassword=MinGpn20!8</Value>
-    </DestinationConnectionStrings>
-  </ItemGroup>
 </Project>

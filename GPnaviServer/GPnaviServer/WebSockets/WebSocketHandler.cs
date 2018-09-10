@@ -58,7 +58,7 @@ namespace GPnaviServer.WebSockets
         /// <returns></returns>
         public virtual async Task OnDisconnected(WebSocket socket)
         {
-            _logger?.LogWarning(LoggingEvents.Disconnect, $"-- DISCONNECT -- {DateTime.Now} -- {socket.State}");
+            _logger?.LogInformation(LoggingEvents.Connect, $"-- DISCONNECT -- {socket.State}");
             await WebSocketConnectionManager.RemoveSocket(WebSocketConnectionManager.GetId(socket));
         }
         /// <summary>

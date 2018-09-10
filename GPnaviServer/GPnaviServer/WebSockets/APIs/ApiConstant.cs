@@ -217,6 +217,10 @@
 
         #region ワークスケジュールマスタ
         /// <summary>
+        /// 重複判別用のキー
+        /// </summary>
+        public const string WS_KEY_JP = "作業開始時間、作業名、休日区分";
+        /// <summary>
         /// 作業開始時間
         /// </summary>
         public const string START_JP = "作業開始時間";

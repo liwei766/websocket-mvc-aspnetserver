@@ -33,10 +33,34 @@ namespace GPnaviServer.Services
         /// </summary>
         public int Add(List<WorkScheduleMaster> wsmList)
         {
-            wsmList.ForEach(wsm => _context.WorkScheduleMasters.Add(wsm));
-            _context.SaveChanges();
 
-            return wsmList.Count();
+            using (var transaction = _context.Database.BeginTransaction())
+            {
+                WorkScheduleVersion wsv = new WorkScheduleVersion();
+                wsv.ExpirationDate = DateTime.MaxValue;
+                var now = DateTime.Now;
+                wsv.RegisterDate = now;
+
+                if (_context.WorkScheduleVersions.Count() > 0)
+                {
+                    WorkScheduleVersion latestWsv = _context.WorkScheduleVersions.OrderByDescending(e => e.Id).First();
+                    latestWsv.ExpirationDate = now;
+                    _context.WorkScheduleVersions.Update(latestWsv);
+                }
+
+                _context.WorkScheduleVersions.Add(wsv);
+                _context.SaveChanges();
+
+                long latestVer = _context.WorkScheduleVersions.Max(e => e.Id);
+
+                //DB WSマスタ追加
+                wsmList.ForEach(wsm => { wsm.Version = latestVer; _context.WorkScheduleMasters.Add(wsm); });
+                _context.SaveChanges();
+
+                transaction.Commit();
+
+                return wsmList.Count();
+            }
         }
 
     }

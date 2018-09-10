@@ -18,10 +18,10 @@ select * from UserStatuses ;
 update UserStatuses set SessionKey='3ca995b6-391f-429f-90a1-6524f1a07563' where LoginId='111';
 
 delete from WorkScheduleVersions;
-select * from WorkScheduleVersions;
+select * from WorkScheduleVersions order by id desc;
 select max(id) from WorkScheduleVersions;
 
-select * from WorkScheduleMasters;
+select * from WorkScheduleMasters order by version desc;
 delete from WorkScheduleMasters where Version>0;
 select * from WorkScheduleMasters where Version=25;
 update WorkScheduleMasters set Start='23:00' where Version=10054;

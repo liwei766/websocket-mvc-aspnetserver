@@ -39,3 +39,24 @@ SimulatedDevice.cs
 - simulated-device.9006.publish.zip
   - センサーID 9006
   - センサーマスタにIDが存在しない
+
+- simulated-device.multi.publish.zip
+  - 環境指定可能
+  - センサーID指定可能
+  - ループ指定可能
+
+        >simulated-device.exe -h
+        
+        Usage: simulated_device [arguments] [options]
+        
+        Arguments:
+          sensorId  Sensor ID
+        
+        Options:
+          -?|-h|--help  Show help information
+          -dev          dev環境
+          -stg          stg環境
+          -loop         繰り返し実行
+  - 使用例
+
+        >simulated-device.exe -dev -loop 9003
