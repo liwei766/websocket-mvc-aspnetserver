@@ -6,11 +6,11 @@ using AutoMapper;
 using GPnaviServer.Models;
 using Microsoft.AspNetCore.Http;
 using GPnaviServer.WebSockets.APIs;
-using System.Threading.Tasks;
 using System.IO;
 using CsvHelper;
 using System.Text.RegularExpressions;
 using System;
+using System.Threading.Tasks;
 
 namespace GPnaviServer.Controllers
 {
@@ -89,7 +89,7 @@ namespace GPnaviServer.Controllers
                     return View("Home", status);
                 }
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 ViewBag.Message = String.Format(ApiConstant.ERR90);
                 return View("Login");
@@ -141,7 +141,7 @@ namespace GPnaviServer.Controllers
 
                 return View("Home", userStatus);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 ViewBag.Message = String.Format(ApiConstant.ERR90);
                 return View("Login");
@@ -160,7 +160,7 @@ namespace GPnaviServer.Controllers
             {
                 _userStatusService.ClearSessionKey(userDto.LoginId, userDto.SessionKey);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 ViewBag.Message = String.Format(ApiConstant.ERR90);
             }
@@ -202,20 +202,17 @@ namespace GPnaviServer.Controllers
                         return View("~/Views/WS/Upload.cshtml", userStatus);
                     }
 
-                    _userVersionService.Add();
+                    await _userService.UploadAsync(userList);
 
-                    int countAdd = _userService.Upload(userList);
-
-                    ViewBag.Message = String.Format(ApiConstant.INFO_UPLOAD_USER_01, countAdd);
+                    ViewBag.Message = String.Format(ApiConstant.INFO_UPLOAD_USER_01, userList.Count);
 
                 }
 
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 ViewBag.Message = String.Format(ApiConstant.ERR90);
             }
-
 
             return View("~/Views/WS/Upload.cshtml", userStatus);
         }

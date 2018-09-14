@@ -44,10 +44,10 @@ namespace GPnaviServer.Services
         /// </summary>
         public long Add()
         {
-            UserVersion wsv = new UserVersion();
-            wsv.ExpirationDate = DateTime.MaxValue;
+            UserVersion uv = new UserVersion();
+            uv.ExpirationDate = DateTime.MaxValue;
             var now = DateTime.Now;
-            wsv.RegisterDate = now;
+            uv.RegisterDate = now;
 
             long latestVersion = GetLatestVersion();
             if(latestVersion>0)
@@ -57,7 +57,7 @@ namespace GPnaviServer.Services
                 _context.UserVersions.Update(latestUserVer);
             }
 
-            _context.UserVersions.Add(wsv);
+            _context.UserVersions.Add(uv);
             _context.SaveChanges();
 
             return GetLatestVersion();

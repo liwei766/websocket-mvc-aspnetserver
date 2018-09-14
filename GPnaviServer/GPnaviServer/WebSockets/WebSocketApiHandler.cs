@@ -196,26 +196,26 @@ namespace GPnaviServer.WebSockets
                     if (userStatus != null && !string.IsNullOrEmpty(userStatus.SessionKey))
                     {
                         // ログイン中
-
                         try
                         {
                             _logger.LogInformation(LoggingEvents.LoginControllerAsync, "解放処理の失敗を許容するようにスコープを作る");
                             _logger.LogTrace(LoggingEvents.LoginControllerAsync, "WS作業状態を検索");
-                            var workScheduleStatus = context.WorkScheduleStatuses.FirstOrDefault(e => e.LoginId.Equals(userMaster.LoginId));
-                            if (workScheduleStatus != null)
+
+                            var workScheduleStatusList = context.WorkScheduleStatuses.Where(e => e.LoginId.Equals(userMaster.LoginId) && (!(e.Status.Equals(ApiConstant.WORK_STATUS_CANCEL) || e.Status.Equals(ApiConstant.WORK_STATUS_FINISH))));
+                            if (workScheduleStatusList.Count()>0)
                             {
                                 _logger.LogTrace(LoggingEvents.LoginControllerAsync, "作業状態をチェック");
-                                if (!(workScheduleStatus.Status.Equals(ApiConstant.WORK_STATUS_CANCEL) || workScheduleStatus.Status.Equals(ApiConstant.WORK_STATUS_FINISH)))
+                                _logger.LogTrace(LoggingEvents.LoginControllerAsync, $"キャンセル、完了以外の場合({workScheduleStatusList.Count()}件)はキャンセルする");
+                                workScheduleStatusList.ToList().ForEach(async workScheduleStatus =>
                                 {
-                                    _logger.LogTrace(LoggingEvents.LoginControllerAsync, "キャンセル、完了以外の場合はキャンセルする");
                                     workScheduleStatus.Status = ApiConstant.WORK_STATUS_CANCEL;
 
                                     _logger.LogTrace(LoggingEvents.LoginControllerAsync, "WSマスタを検索する（短縮名が必要）");
                                     var workScheduleMaster = context.WorkScheduleMasters.FirstOrDefault(e =>
-                                         e.Version.Equals(workScheduleStatus.Version) &&
-                                         e.Start.Equals(workScheduleStatus.Start) &&
-                                         e.Name.Equals(workScheduleStatus.Name) &&
-                                         e.Holiday.Equals(workScheduleStatus.Holiday)
+                                            e.Version.Equals(workScheduleStatus.Version) &&
+                                            e.Start.Equals(workScheduleStatus.Start) &&
+                                            e.Name.Equals(workScheduleStatus.Name) &&
+                                            e.Holiday.Equals(workScheduleStatus.Holiday)
                                     );
 
                                     _logger.LogTrace(LoggingEvents.LoginControllerAsync, "作業状況履歴を追加する");
@@ -239,10 +239,6 @@ namespace GPnaviServer.WebSockets
                                         context.WorkStatusHistories.Add(workStatusHistory);
                                     }
 
-                                    // 保存を一か所にすることで例外回避するか様子を見る
-                                    //_logger.LogTrace(LoggingEvents.LoginControllerAsync, "保存する");
-                                    //await _context.SaveChangesAsync();
-
                                     _logger.LogTrace(LoggingEvents.LoginControllerAsync, "作業ステータスを送信する");
                                     var apiWorkStatus = new ApiWorkStatus
                                     {
@@ -256,8 +252,9 @@ namespace GPnaviServer.WebSockets
                                     };
                                     var workStatusJson = JsonConvert.SerializeObject(apiWorkStatus);
                                     await SendWorkStatusMessageToAllAsync(context, workStatusJson);
-                                }
+                                });
                             }
+                         
 
                             _logger.LogTrace(LoggingEvents.LoginControllerAsync, "突発作業状態を検索");
                             var sensorStatus = context.SensorStatuses.FirstOrDefault(e => e.LoginId.Equals(userMaster.LoginId));
@@ -1027,6 +1024,7 @@ namespace GPnaviServer.WebSockets
                 .UseSqlServer(Configuration.GetConnectionString("DefaultConnection"))
                 .Options;
             using (var context = new GPnaviServerContext(options))
+            using (var transaction = context.Database.BeginTransaction())
             {
                 try
                 {
@@ -1165,6 +1163,8 @@ namespace GPnaviServer.WebSockets
                     _logger.LogTrace(LoggingEvents.RegisterControllerAsync, "保存する");
                     await context.SaveChangesAsync();
 
+                    transaction.Commit();
+
                     if (lastItem)
                     {
                         _logger.LogTrace(LoggingEvents.RegisterControllerAsync, "最後のアイテムなので登録OKを送信する");
@@ -1198,11 +1198,19 @@ namespace GPnaviServer.WebSockets
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(LoggingEvents.Exception, ex, "RegisterControllerAsync unknown error.");
                     if (lastItem)
                     {
                         _logger.LogTrace(LoggingEvents.RegisterControllerAsync, "最後のアイテムなので登録NGを送信する");
-                        await SendRegisterResultNGAsync(socket, nameof(ApiConstant.ERR90), ApiConstant.ERR90);
+                        if(ex is DbUpdateException)
+                        {
+                            _logger.LogError(LoggingEvents.Exception, "RegisterControllerAsync DbUpdateException.");
+                            await SendRegisterResultNGAsync(socket, nameof(ApiConstant.ERR06), ApiConstant.ERR06);
+                        }
+                        else
+                        {
+                            _logger.LogError(LoggingEvents.Exception, ex, "RegisterControllerAsync unknown error.");
+                            await SendRegisterResultNGAsync(socket, nameof(ApiConstant.ERR90), ApiConstant.ERR90);
+                        }
                     }
                     else
                     {
@@ -1333,6 +1341,7 @@ namespace GPnaviServer.WebSockets
                 .UseSqlServer(Configuration.GetConnectionString("DefaultConnection"))
                 .Options;
             using (var context = new GPnaviServerContext(options))
+            using (var transaction = context.Database.BeginTransaction())
             {
                 try
                 {
@@ -1421,6 +1430,8 @@ namespace GPnaviServer.WebSockets
                     _logger.LogTrace(LoggingEvents.RegisterControllerAsync, "保存する");
                     await context.SaveChangesAsync();
 
+                    transaction.Commit();
+
                     if (lastItem)
                     {
                         _logger.LogTrace(LoggingEvents.RegisterControllerAsync, "最後のアイテムなので登録OKを送信する");
@@ -1450,11 +1461,19 @@ namespace GPnaviServer.WebSockets
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(LoggingEvents.Exception, ex, "RegisterControllerAsync unknown error.");
                     if (lastItem)
                     {
                         _logger.LogTrace(LoggingEvents.RegisterControllerAsync, "最後のアイテムなので登録NGを送信する");
-                        await SendRegisterResultNGAsync(socket, nameof(ApiConstant.ERR90), ApiConstant.ERR90);
+                        if (ex is DbUpdateException)
+                        {
+                            _logger.LogError(LoggingEvents.Exception, "RegisterControllerAsync DbUpdateException.");
+                            await SendRegisterResultNGAsync(socket, nameof(ApiConstant.ERR06), ApiConstant.ERR06);
+                        }
+                        else
+                        {
+                            _logger.LogError(LoggingEvents.Exception, ex, "RegisterControllerAsync unknown error.");
+                            await SendRegisterResultNGAsync(socket, nameof(ApiConstant.ERR90), ApiConstant.ERR90);
+                        }
                     }
                     else
                     {
@@ -1852,7 +1871,7 @@ namespace GPnaviServer.WebSockets
                     var sessionKey = resource.Properties().First(prop => "session_key" == prop.Name).Value.ToString();
 
                     _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"担当者ステータスの検索");
-                    var userStatus = context.UserStatuses.Find(loginId);
+                    var userStatus = context.UserStatuses.AsNoTracking().First(item => string.Equals(item.LoginId,loginId) );
 
                     //セッションキーが存在しない[ERR03]
                     if (null == userStatus || string.IsNullOrEmpty(userStatus.SessionKey))
@@ -1882,7 +1901,7 @@ namespace GPnaviServer.WebSockets
                     sw.Stop();
                     _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"WSマスタバージョンの検索経過時間の合計 = {sw.Elapsed}");
 
-                    if (wsvs == null || wsvs.Count() < 1)
+                    if ( !wsvs.Any())
                     {
                         _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"WSマスタバージョンが無い");
                         await SendListResultNGAsync(socket, nameof(ApiConstant.ERR07), ApiConstant.ERR07);
@@ -1896,8 +1915,8 @@ namespace GPnaviServer.WebSockets
                     //WSマスタ取得。もしが存在しない[ERR07]
                     _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"WSマスタの検索");
                     sw.Restart();
-                    var wsms = context.WorkScheduleMasters.AsNoTracking().ToList().Where(e => verArr.Contains(e.Version));
-                    wsms = wsms.Where(item =>
+                    var hms = context.HolidayMasters.AsNoTracking().Select(item => item.Holiday).ToArray();
+                    var wsms = context.WorkScheduleMasters.AsNoTracking().AsQueryable().Where(e => verArr.Contains(e.Version)).ToList().Where(item =>
                     {
 
                         //休日判別で不具合なデータをフィルターする（正しいデータのみを選択）
@@ -1917,7 +1936,7 @@ namespace GPnaviServer.WebSockets
                         var date = startDateTimeTmp.Date;
                         var holidayFlag = ApiConstant.HOLIDAY_FALSE;
 
-                        if (date.DayOfWeek == DayOfWeek.Sunday || date.DayOfWeek == DayOfWeek.Saturday || context.HolidayMasters.Find(date) != null)
+                        if (date.DayOfWeek == DayOfWeek.Sunday || date.DayOfWeek == DayOfWeek.Saturday || hms.Contains(date))
                         {
                             holidayFlag = ApiConstant.HOLIDAY_TRUE;
                         }
@@ -1926,9 +1945,9 @@ namespace GPnaviServer.WebSockets
                     });
 
                     sw.Stop();
-                    _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"WSマスタの検索経過時間の合計 = {sw.Elapsed}");
+                    _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"WSマスタの検索 件数{wsms.Count()} 経過時間の合計 = {sw.Elapsed}");
 
-                    if (wsms == null || wsms.Count() < 1)
+                    if (!wsms.Any())
                     {
                         _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"WSマスタが無い");
                         await SendListResultNGAsync(socket, nameof(ApiConstant.ERR07), ApiConstant.ERR07);
@@ -1952,7 +1971,7 @@ namespace GPnaviServer.WebSockets
                     sw.Stop();
                     _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"突発作業状態の検索経過時間の合計 = {sw.Elapsed}");
 
-                    if (wshs.Count() > 0)
+                    if (wshs.Any())
                     {
                         _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"検索条件の設定");
                         //同じ作業のデータが複数存在する場合は、最後のデータを抽出対象とする。
@@ -1965,7 +1984,7 @@ namespace GPnaviServer.WebSockets
                         wshs = wshs.GroupBy(item => new { item.Version, item.Start, item.Name, item.Holiday, item.StartDate })
                             .SelectMany(grouping =>
                             {
-                                if (grouping.Where(item => item.Status == WORK_STATUS_CANCEL).Count() > 0)
+                                if (grouping.Where(item => item.Status == WORK_STATUS_CANCEL).Any())
                                     return grouping.Take(0);
 
                                 return grouping.OrderByDescending(item => item.RegisterDate).Take(1);
@@ -1979,7 +1998,7 @@ namespace GPnaviServer.WebSockets
                         wshs = wshs.GroupBy(item => new { item.SensorId, item.StartDate })
                             .SelectMany(grouping =>
                             {
-                                if (grouping.Where(item => item.Status == WORK_STATUS_CANCEL).Count() > 0)
+                                if (grouping.Where(item => item.Status == WORK_STATUS_CANCEL).Any())
                                     return grouping.Take(0);
 
                                 return grouping.OrderByDescending(item => item.RegisterDate).Take(1);
@@ -2020,7 +2039,7 @@ namespace GPnaviServer.WebSockets
 
 
                     _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"検索条件でさらにSELECT");
-                    var wsms_leftOuterJoin_wshsExt = from wsm in wsms
+                    var wsms_leftOuterJoin_wshsExt = (from wsm in wsms
                                                      join wshExt in wshsExt
                                                      on new { wsm.Version, wsm.Start, wsm.Name, wsm.Holiday } equals new { wshExt.Version, wshExt.Start, wshExt.Name, wshExt.Holiday }
                                                      into temp
@@ -2044,11 +2063,11 @@ namespace GPnaviServer.WebSockets
                                                          sensor_date = rec?.OccurrenceDate ?? default(DateTime),
                                                          start_date = rec?.StartDate ?? default(DateTime),
                                                          register_date = rec?.RegisterDate ?? default(DateTime),
-                                                     };
+                                                     }).Distinct();
 
 
                     _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"検索条件でさらにさらにSELECT");
-                    var wsms_rightOuterJoin_wshsExt = from wshExt in wshsExt
+                    var wsms_rightOuterJoin_wshsExt = (from wshExt in wshsExt
                                                       join wsm in wsms
                                                       on new { wshExt.Version, wshExt.Start, wshExt.Name, wshExt.Holiday } equals new { wsm.Version, wsm.Start, wsm.Name, wsm.Holiday }
                                                       into temp
@@ -2072,12 +2091,16 @@ namespace GPnaviServer.WebSockets
                                                           sensor_date = wshExt.OccurrenceDate == null ? default(DateTime) : wshExt.OccurrenceDate,
                                                           start_date = wshExt.StartDate == null ? default(DateTime) : wshExt.StartDate,
                                                           register_date = wshExt.RegisterDate == null ? default(DateTime) : wshExt.RegisterDate,
-                                                      };
+                                                      }).Distinct();
 
-                    _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"検索条件でさらにさらにさらにUNION");
+
+                    _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"検索条件でさらにさらにさらにUNIONするような処理");
 
                     sw.Restart();
-                    var wsms_fullOuterJoin_wshsExt = wsms_leftOuterJoin_wshsExt.Union(wsms_rightOuterJoin_wshsExt);
+                    //var wsms_fullOuterJoin_wshsExt = wsms_leftOuterJoin_wshsExt.Union(wsms_rightOuterJoin_wshsExt);
+                    var wsms_fullOuterJoin_wshsExt = wsms_leftOuterJoin_wshsExt.Except(wsms_rightOuterJoin_wshsExt).ToList();
+                    wsms_fullOuterJoin_wshsExt.AddRange(wsms_rightOuterJoin_wshsExt.ToList());
+
                     sw.Stop();
                     _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"wsms_fullOuterJoin_wshsEx 経過時間の合計 = {sw.Elapsed}");
 
@@ -2089,19 +2112,23 @@ namespace GPnaviServer.WebSockets
                     _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"長い検索の後でリストに");
 
                     sw.Restart();
-                    var listResult = wsms_fullOuterJoin_wshsExt.ToList();
+                    var listResult = wsms_fullOuterJoin_wshsExt;
                     sw.Stop();
                     _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"長い検索の後でリストに 経過時間の合計 = {sw.Elapsed}");
 
                     var wsList = new List<WorkItem>();
 
-                    _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"レスポンスを作り始める count={listResult.Count}");
+                    _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, "レスポンスを作り始める");
 
                     sw.Restart();
-                    listResult.ForEach(item =>
-                    {
-                        _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"レスポンスを作り中...");
+                    var wsv = context.WorkScheduleVersions.AsNoTracking();
 
+
+                    foreach (var item in listResult)
+                    {
+                        //TODO：このログ出力時間：50%以上の処理時間
+                        //_logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"レスポンスを作り中...");
+                        
                         var display_date_tmp = item.start_date;
 
                         if (!string.Equals(item.work_status, ApiConstant.WORK_STATUS_FINISH) && display_date_tmp == default(DateTime) && TimeSpan.TryParse(item.display_date, out timeSpan))
@@ -2122,7 +2149,7 @@ namespace GPnaviServer.WebSockets
                         if (string.IsNullOrWhiteSpace(item.work_status) && item.ws_version != 0)
                         {
                             // バージョン有効期限の範囲に入っているのかチェック
-                            var workScheduleVersion = context.WorkScheduleVersions.FirstOrDefault(e => e.Id == item.ws_version);
+                            var workScheduleVersion = wsv.FirstOrDefault(e => e.Id == item.ws_version);
                             if (workScheduleVersion != null)
                             {
                                 if (workScheduleVersion.RegisterDate < display_date_tmp && display_date_tmp < workScheduleVersion.ExpirationDate)
@@ -2132,7 +2159,8 @@ namespace GPnaviServer.WebSockets
                                 }
                                 else
                                 {
-                                    _logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"無効アイテムを検出 {display_date_tmp} v={item.ws_version}");
+                                    //TODO：このログ長い時間かかる　30%以上の処理時間
+                                    //_logger.LogTrace(LoggingEvents.ListRequestControllerAsync, $"無効アイテムを検出 {display_date_tmp} v={item.ws_version}");
                                 }
                             }
                             else
@@ -2168,7 +2196,7 @@ namespace GPnaviServer.WebSockets
                                 register_date = item.register_date == default(DateTime) ? "" : item.register_date.ToString(DateTimeFormat, CultureInfoApi)
                             });
                         }
-                    });
+                    }
 
 
 
@@ -2177,11 +2205,11 @@ namespace GPnaviServer.WebSockets
                                             {
                                                 if (e.OccurrenceDate > e.StartDate || (e.OccurrenceDate <= e.StartDate && string.Equals(e.Status, ApiConstant.WORK_STATUS_CANCEL)))
                                                 {
-                                                    string[] statusArr = { ApiConstant.WORK_STATUS_START, ApiConstant.WORK_STATUS_PAUSE , ApiConstant.WORK_STATUS_FINISH };
+                                                    string[] statusArr = { ApiConstant.WORK_STATUS_START, ApiConstant.WORK_STATUS_PAUSE, ApiConstant.WORK_STATUS_FINISH };
 
-                                                    if ( statusArr.Contains(e.Status)  )
+                                                    if (statusArr.Contains(e.Status))
                                                     {
-                                                        if(e.StartDate > startTime)
+                                                        if (e.StartDate > startTime)
                                                             return true;
                                                     }
                                                     else

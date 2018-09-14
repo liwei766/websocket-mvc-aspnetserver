@@ -51,10 +51,6 @@ namespace GPnaviServer.IotHub
         public double SensorTimeSpanMinutes { get; }
 
         /// <summary>
-        /// 設定
-        /// </summary>
-        public IConfiguration Configuration { get; }
-        /// <summary>
         /// Notification HUB
         /// </summary>
         public PushToNotificationHub _pushToNotificationHub { get; }
@@ -67,7 +63,6 @@ namespace GPnaviServer.IotHub
         /// <param name="configuration">設定</param>
         public IotHubApiHandler(IotHubConnectionManager iotHubConnectionManager, ILogger<IotHubApiHandler> logger, IConfiguration configuration) : base(iotHubConnectionManager, logger, configuration)
         {
-            Configuration = configuration;
             var sensorTimeSpanMinutes = Configuration["SensorTimeSpanMinutes"];
             try
             {
@@ -225,7 +220,7 @@ namespace GPnaviServer.IotHub
                     }
                     else
                     {
-                        _logger.LogTrace(LoggingEvents.IotHubReceive, "Androidデバイスが登録されていない");
+                        _logger.LogWarning(LoggingEvents.IotHubReceive, "Androidデバイスが登録されていない");
                     }
 
                     var iotTokens = context.UserStatuses.Where(e => e.DeviceType.Equals(ApiConstant.DEVICE_TYPE_IOT)).Select(e => e.DeviceToken).ToList();
@@ -235,10 +230,10 @@ namespace GPnaviServer.IotHub
                     }
                     else
                     {
-                        _logger.LogTrace(LoggingEvents.IotHubReceive, "IoTデバイスが登録されていない");
+                        _logger.LogWarning(LoggingEvents.IotHubReceive, "IoTデバイスが登録されていない");
                     }
 
-                    _logger.LogInformation(LoggingEvents.PushMessageAsync, $"センサー検知の送信に成功しました。{apiSensorPushJson}");
+                    _logger.LogWarning(LoggingEvents.PushMessageAsync, $"センサー検知の送信に成功しました。{apiSensorPushJson}");
                 }
                 catch (JsonWriterException ex)
                 {

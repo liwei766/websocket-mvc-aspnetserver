@@ -7,6 +7,8 @@ using System.Security.Cryptography;
 using System.Text;
 using GPnaviServer.Data;
 using GPnaviServer.WebSockets.APIs;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace GPnaviServer.Services
 {
@@ -15,16 +17,24 @@ namespace GPnaviServer.Services
         UserMaster Authenticate(string loginId, string password);
         UserMaster GetById(string id);
         UserMaster Create(UserMaster user, string password);
-        int Upload(List<UserMaster> userList);
+        Task UploadAsync(List<UserMaster> userList);
     }
 
     public class UserService : IUserService
     {
+        /// <summary>
+        /// DBコンテキスト
+        /// </summary>
         private GPnaviServerContext _context;
+        /// <summary>
+        /// ロガー
+        /// </summary>
+        protected readonly ILogger _logger;
 
-        public UserService(GPnaviServerContext context)
+        public UserService(GPnaviServerContext context, ILogger<UserService> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public int Add(List<UserMaster> userList)
@@ -47,54 +57,80 @@ namespace GPnaviServer.Services
         /// 担当者情報をアップロードして、一括登録
         /// </summary>
         /// <param name="userList">一括登録のユーザリスト</param>
-        /// <returns>登録したユーザ数</returns>
-        public int Upload(List<UserMaster> userList)
+        /// <returns></returns>
+        public async Task UploadAsync(List<UserMaster> userList)
         {
-            var changedUserlist = new List<UserMaster>();
-            userList.ForEach(user =>
+            _logger.LogTrace(DateTime.Now + "|DBへ担当者一括登録処理開始");
+            using (var transaction = _context.Database.BeginTransaction())
             {
-                //DBに新規作成又は更新前に、部分コラムにデフォルト値を設定
-                user.Role = ApiConstant.ROLE_WORK;
-                user.IsValid = true;
-                user.Password = CreatePasswordHash(user.Password);
-                user.RemoveDate = DateTime.MaxValue;
-
-                UserMaster dbUser = GetById(user.LoginId);
-                if (null == dbUser)//存在しなければ新規作成
+                try
                 {
-                    _context.UserMasters.Add(user);
-                    dbUser = user;
+                    var uv = new UserVersion();
+                    uv.ExpirationDate = DateTime.MaxValue;
+                    var now = DateTime.Now;
+                    uv.RegisterDate = now;
+
+                    if (_context.UserVersions.Any())
+                    {
+                        var latestWsv = _context.UserVersions.OrderByDescending(e => e.Id).First();
+                        latestWsv.ExpirationDate = now;
+                    }
+                    _context.UserVersions.Add(uv);
+                    _logger.LogTrace(DateTime.Now + $"|ユーザバージョン更新済。");
+
+
+                    var changedUserlist = new List<UserMaster>();
+                    userList.ForEach(user =>
+                    {
+                        //DBに新規作成又は更新前に、部分コラムにデフォルト値を設定
+                        user.Role = ApiConstant.ROLE_WORK;
+                        user.IsValid = true;
+                        user.Password = CreatePasswordHash(user.Password);
+                        user.RemoveDate = DateTime.MaxValue;
+
+                        UserMaster dbUser = GetById(user.LoginId);
+                        if (null == dbUser)//存在しなければ新規作成
+                        {
+                            _context.UserMasters.Add(user);
+                            dbUser = user;
+                        }
+                        else//既存のデータを更新
+                        {
+                            dbUser.LoginName = user.LoginName;
+                            dbUser.Role = user.Role;
+                            dbUser.IsValid = user.IsValid;
+                            dbUser.Password = user.Password;
+                            dbUser.RemoveDate = user.RemoveDate;
+                        }
+                        changedUserlist.Add(dbUser);
+                    });
+                    _logger.LogTrace(DateTime.Now + $"|ユーザマスタにADD又はUPDATEで更新済：合計{userList.Count}件");
+
+                    //全て有効的な普通のユーザを取得
+                    var allUsers = _context.UserMasters.Where(userdb => userdb.IsValid && userdb.Role== ApiConstant.ROLE_WORK && userdb.RemoveDate == DateTime.MaxValue );
+
+                    //今回一括登録されたユーザリストに含まれていないユーザを取得
+                    var expiredUserList = allUsers.Except(changedUserlist);
+
+                    //論理削除
+                    foreach (var expiredUser in expiredUserList) {
+                        expiredUser.IsValid = false;
+                        expiredUser.RemoveDate = now;
+                    };
+                    _logger.LogTrace(DateTime.Now + $"|ユーザマスタに論理削除の更新済：合計{expiredUserList.Count()}件");
+
+                    //非同期で保存
+                    await _context.SaveChangesAsync();
+                    transaction.Commit();
+                    _logger.LogTrace(DateTime.Now + $"|担当者一括登録済：合計{userList.Count}件");
                 }
-                else//既存のデータを更新
+                catch (Exception e)
                 {
-                    dbUser.LoginName = user.LoginName;
-                    dbUser.Role = user.Role;
-                    dbUser.IsValid = user.IsValid;
-                    dbUser.Password = user.Password;
-                    dbUser.RemoveDate = user.RemoveDate;
+                    transaction.Rollback();
+                    _logger.LogError(DateTime.Now + "|処理失敗、ロールバック済。Exceptionメッセージ：" + e.Message);
+                    throw;
                 }
-                changedUserlist.Add(dbUser);
-
-            });
-
-            //全て有効的な普通のユーザを取得
-            var allUsers = _context.UserMasters.Where(userdb => userdb.IsValid && userdb.Role== ApiConstant.ROLE_WORK && userdb.RemoveDate == DateTime.MaxValue ).ToArray();
-
-            //今回一括登録されたユーザリストに含まれていないユーザを取得
-            var expiredUserList = allUsers.Except(changedUserlist);
-
-            //論理削除
-            var now = DateTime.Now;
-            foreach (var expiredUser in expiredUserList) {
-                expiredUser.IsValid = false;
-                expiredUser.RemoveDate = now;
-            };
-
-            //コミット
-            _context.SaveChanges();
-
-
-            return userList.Count();
+            }
         }
 
         /// <summary>

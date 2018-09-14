@@ -11,9 +11,10 @@ using System;
 namespace GPnaviServer.Migrations
 {
     [DbContext(typeof(GPnaviServerContext))]
-    partial class GPnaviServerContextModelSnapshot : ModelSnapshot
+    [Migration("20180912043041_TimeStamp")]
+    partial class TimeStamp
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

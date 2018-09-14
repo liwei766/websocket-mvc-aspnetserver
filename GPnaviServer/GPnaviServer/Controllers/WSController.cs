@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using GPnaviServer.Models;
 using System.IO;
@@ -11,6 +10,7 @@ using GPnaviServer.Services;
 using AutoMapper;
 using System.Text.RegularExpressions;
 using GPnaviServer.WebSockets.APIs;
+using System.Threading.Tasks;
 
 namespace GPnaviServer.Controllers
 {
@@ -132,13 +132,13 @@ namespace GPnaviServer.Controllers
                         return View("upload", userStatus);
                     }
 
-                    int countAdd = _wsmService.Add(wsmList);
+                    await _wsmService.UploadAsync(wsmList);
 
-                    ViewBag.Message = String.Format(ApiConstant.INFO_UPLOAD_WS_01, countAdd);
+                    ViewBag.Message = String.Format(ApiConstant.INFO_UPLOAD_WS_01, wsmList.Count);
 
                 }
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 ViewBag.Message = String.Format(ApiConstant.ERR90);
             }
@@ -158,6 +158,7 @@ namespace GPnaviServer.Controllers
             //時間としての分のフォーマット
             Regex checkMinute = new Regex(@"^[0-9]*[1-9][0-9]*$");
 
+            //重要度の値の範囲
             var prioritySet = new HashSet<string>(){ "H", "M", "L" };
             var iconIdSet = new HashSet<string>()
             {
@@ -174,6 +175,8 @@ namespace GPnaviServer.Controllers
                 "0010",
                 "0011"
             };
+
+            //休日区分の範囲
             var holidaySet = new HashSet<string>() {ApiConstant.HOLIDAY_FALSE, ApiConstant.HOLIDAY_TRUE};
 
             //重複判別用wsSetを用意

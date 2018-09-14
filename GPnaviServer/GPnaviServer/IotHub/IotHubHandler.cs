@@ -73,7 +73,7 @@ namespace GPnaviServer.IotHub
         /// </summary>
         public void Connect()
         {
-            _logger.LogInformation(LoggingEvents.IotHubReceive, $"--IOT CONNECT--");
+            _logger.LogWarning(LoggingEvents.IotHubReceive, $"--IOT CONNECT--");
 
             // 接続中にする
             _iotHubConnectionManager.IsConnect = true;
@@ -100,7 +100,7 @@ namespace GPnaviServer.IotHub
             {
                 // Create an EventHubClient instance to connect to the
                 // IoT Hub Event Hubs-compatible endpoint.
-                var connectionString = new EventHubsConnectionStringBuilder(new Uri(s_eventHubsCompatibleEndpoint), s_eventHubsCompatiblePath, s_iotHubSasKeyName, s_iotHubSasKey);
+                var connectionString = new EventHubsConnectionStringBuilder(new Uri(EventHubsCompatibleEndpoint), EventHubsCompatiblePath, IotHubSasKeyName, IotHubSasKey);
                 s_eventHubClient = EventHubClient.CreateFromConnectionString(connectionString.ToString());
 
                 // Create a PartitionReciever for each partition on the hub.

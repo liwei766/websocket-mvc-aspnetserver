@@ -49,5 +49,10 @@ namespace GPnaviServer.Models
         /// </summary>
         [MaxLength(13)]
         public string LoginId { get; set; }
+        /// <summary>
+        /// 楽観的ロック
+        /// </summary>
+        [Timestamp]
+        public byte[] TimeStamp { get; set; }
     }
 }
